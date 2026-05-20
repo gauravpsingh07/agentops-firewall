@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------
+# AgentOps Firewall — backend base configuration.
+# Profile-specific overrides will live in application-local.yml,
+# application-test.yml, etc., introduced in later phases.
+# ---------------------------------------------------------------------------
+
+spring:
+  application:
+    name: agentops-firewall
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.agentops.firewall: DEBUG

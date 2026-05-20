@@ -1,0 +1,108 @@
+# ---------------------------------------------------------------------------
+# AgentOps Firewall — root .gitignore
+# Goal: never commit secrets, real env files, build artifacts, or local caches.
+# ---------------------------------------------------------------------------
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+.project
+.classpath
+.settings/
+
+# Claude / local agent settings
+.claude/settings.local.json
+.claude/cache/
+
+# -------- Environment files (NEVER commit real values) --------
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# -------- Secrets / credentials --------
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+*.jks
+*.keystore
+*.truststore
+id_rsa
+id_dsa
+*.ppk
+secrets/
+credentials/
+*.secret
+*credentials*.json
+*service-account*.json
+
+# -------- Database dumps / data dirs --------
+*.sql.gz
+*.dump
+*.bak
+*.backup
+postgres-data/
+pgdata/
+rabbitmq-data/
+kafka-data/
+
+# -------- Logs --------
+logs/
+*.log
+
+# -------- Java / Maven --------
+target/
+*.class
+hs_err_pid*.log
+.mvn/wrapper/maven-wrapper.jar
+
+# -------- Gradle (precaution) --------
+.gradle/
+build/
+
+# -------- Node / Angular --------
+node_modules/
+dist/
+.angular/
+coverage/
+*.tsbuildinfo
+.cache/
+.npm/
+
+# -------- Playwright --------
+test-results/
+playwright-report/
+playwright/.cache/
+
+# -------- Docker --------
+*.pid
+
+# -------- Terraform --------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# -------- Misc --------
+tmp/
+temp/
+*.tmp
