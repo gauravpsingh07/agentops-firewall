@@ -72,6 +72,12 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Kafka producer / consumer -->
+        <dependency>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
         <!-- JSON Web Tokens (jjwt 0.12.x API) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

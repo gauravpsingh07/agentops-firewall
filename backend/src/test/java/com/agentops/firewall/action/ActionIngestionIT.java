@@ -7,7 +7,9 @@ import com.agentops.firewall.audit.AuditLogRepository;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.AgentStatus;
 import com.agentops.firewall.common.domain.enums.UserRole;
+import com.agentops.firewall.messaging.AgentActionEventPublisher;
 import com.agentops.firewall.policy.PolicyConditionRepository;
+import com.agentops.firewall.policy.PolicyEvaluationResult;
 import com.agentops.firewall.policy.PolicyRepository;
 import com.agentops.firewall.policy.SamplePolicySeeder;
 import com.agentops.firewall.support.TestUserFactory;
@@ -17,9 +19,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,6 +32,9 @@ import org.springframework.test.web.servlet.MvcResult;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +61,7 @@ class ActionIngestionIT {
     @Autowired PolicyRepository policyRepository;
     @Autowired PolicyConditionRepository conditionRepository;
     @Autowired AuditLogRepository auditLogRepository;
+    @MockBean AgentActionEventPublisher eventPublisher;
 
     private UUID agentId;
     private String agentName;
@@ -117,7 +125,7 @@ class ActionIngestionIT {
     }
 
     @Test
-    @DisplayName("ALLOW outcome: LOW-risk action -> status ALLOWED, decision persisted, audit logs written")
+    @DisplayName("ALLOW outcome: LOW-risk action -> status ALLOWED, decision persisted, audit logs written, Kafka published")
     void allowOutcomePersistsAllowedStatus() throws Exception {
         MvcResult result = mockMvc.perform(post("/api/agent-actions")
                         .header("X-Agent-Key", rawKey)
@@ -139,6 +147,30 @@ class ActionIngestionIT {
         assertThat(auditLogRepository.findAll())
                 .anyMatch(l -> "ACTION_RECEIVED".equals(l.getEventType()))
                 .anyMatch(l -> "POLICY_DECISION".equals(l.getEventType()));
+
+        // Kafka publish verifications: one received-event, one decided-event.
+        ArgumentCaptor<ActionRequest> receivedAction = ArgumentCaptor.forClass(ActionRequest.class);
+        ArgumentCaptor<Agent> receivedAgent = ArgumentCaptor.forClass(Agent.class);
+        verify(eventPublisher, times(1)).publishReceived(receivedAction.capture(), receivedAgent.capture());
+        assertThat(receivedAction.getValue().getId()).isEqualTo(actionId);
+        assertThat(receivedAgent.getValue().getName()).isEqualTo(agentName);
+
+        ArgumentCaptor<ActionRequest> decidedAction = ArgumentCaptor.forClass(ActionRequest.class);
+        ArgumentCaptor<PolicyEvaluationResult> decidedResult = ArgumentCaptor.forClass(PolicyEvaluationResult.class);
+        verify(eventPublisher, times(1)).publishDecided(decidedAction.capture(), decidedResult.capture());
+        assertThat(decidedAction.getValue().getId()).isEqualTo(actionId);
+        assertThat(decidedResult.getValue().outcome().name()).isEqualTo("ALLOW");
+    }
+
+    @Test
+    @DisplayName("a failed agent-auth attempt never publishes a Kafka event")
+    void failedAuthDoesNotPublish() throws Exception {
+        mockMvc.perform(post("/api/agent-actions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonBody(agentName, "DELETE_FILE", "MEDIUM", null)))
+                .andExpect(status().isUnauthorized());
+        verify(eventPublisher, never()).publishReceived(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+        verify(eventPublisher, never()).publishDecided(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 
     @Test

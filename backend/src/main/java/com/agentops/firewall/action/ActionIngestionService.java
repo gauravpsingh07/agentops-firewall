@@ -8,6 +8,7 @@ import com.agentops.firewall.agent.AgentService;
 import com.agentops.firewall.audit.AuditService;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.PolicyOutcome;
+import com.agentops.firewall.messaging.AgentActionEventPublisher;
 import com.agentops.firewall.policy.PolicyEvaluationContext;
 import com.agentops.firewall.policy.PolicyEvaluationResult;
 import com.agentops.firewall.policy.PolicyEvaluator;
@@ -34,8 +35,10 @@ import java.util.Map;
  *   <li>Mark the agent's lastUsedAt timestamp.</li>
  * </ol>
  *
- * <p>This commit deliberately does not create ApprovalRequest rows or
- * publish Kafka events; those land in the next commits of Phase 3.
+ * <p>Action lifecycle events are fanned out to Kafka via
+ * {@link AgentActionEventPublisher} (one event after persist, one after
+ * decision). ApprovalRequest creation is intentionally deferred to the
+ * next phase.
  */
 @Service
 public class ActionIngestionService {
@@ -46,6 +49,7 @@ public class ActionIngestionService {
     private final PolicyDecisionRepository policyDecisionRepository;
     private final PolicyEvaluator policyEvaluator;
     private final AuditService auditService;
+    private final AgentActionEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
 
     public ActionIngestionService(AgentAuthenticationService agentAuthenticationService,
@@ -54,6 +58,7 @@ public class ActionIngestionService {
                                    PolicyDecisionRepository policyDecisionRepository,
                                    PolicyEvaluator policyEvaluator,
                                    AuditService auditService,
+                                   AgentActionEventPublisher eventPublisher,
                                    ObjectMapper objectMapper) {
         this.agentAuthenticationService = agentAuthenticationService;
         this.agentService = agentService;
@@ -61,6 +66,7 @@ public class ActionIngestionService {
         this.policyDecisionRepository = policyDecisionRepository;
         this.policyEvaluator = policyEvaluator;
         this.auditService = auditService;
+        this.eventPublisher = eventPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -90,6 +96,11 @@ public class ActionIngestionService {
                         "resource", body.resource()
                 )
         );
+
+        // Fan out the received-event to Kafka. Publishing failures are
+        // swallowed inside the publisher so synchronous callers never
+        // block on broker availability.
+        eventPublisher.publishReceived(saved, agent);
 
         PolicyEvaluationContext ctx = new PolicyEvaluationContext(
                 body.actionType(), body.resource(), body.riskLevel(), metadata, agent);
@@ -124,6 +135,8 @@ public class ActionIngestionService {
                         "reason", evaluation.reason()
                 )
         );
+
+        eventPublisher.publishDecided(saved, evaluation);
 
         agentService.markUsed(agent.getId());
 

@@ -5,6 +5,19 @@
 # ---------------------------------------------------------------------------
 
 spring:
+  # Kafka autoconfiguration is left enabled so the KafkaTemplate bean
+  # exists for autowiring. No real broker is contacted during tests:
+  # tests that exercise publishing mock the AgentActionEventPublisher
+  # bean, and producer-side tight timeouts (configured below) keep any
+  # accidental send attempt from blocking the suite.
+  kafka:
+    bootstrap-servers: ${TEST_KAFKA_BOOTSTRAP:localhost:9999}
+    producer:
+      properties:
+        max.block.ms: 500
+        delivery.timeout.ms: 1000
+        request.timeout.ms: 500
+
   datasource:
     url: jdbc:h2:mem:agentops-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
     username: sa
@@ -23,6 +36,12 @@ spring:
     enabled: false
 
 agentops:
+  messaging:
+    kafka:
+      topic:
+        actions-received: test.agent.actions.received
+        actions-decided: test.agent.actions.decided
+        actions-completed: test.agent.actions.completed
   security:
     jwt:
       # Test-only HS256 secret (>= 32 bytes). Never used outside tests.

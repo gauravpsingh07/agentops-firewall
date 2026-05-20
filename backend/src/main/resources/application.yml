@@ -38,6 +38,17 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        max.block.ms: 5000
+        delivery.timeout.ms: 8000
+        request.timeout.ms: 5000
+
 server:
   port: 8080
   error:
@@ -54,6 +65,12 @@ management:
       show-details: never
 
 agentops:
+  messaging:
+    kafka:
+      topic:
+        actions-received:  ${AGENTOPS_KAFKA_TOPIC_ACTIONS_RECEIVED:agent.actions.received}
+        actions-decided:   ${AGENTOPS_KAFKA_TOPIC_ACTIONS_DECIDED:agent.actions.decided}
+        actions-completed: ${AGENTOPS_KAFKA_TOPIC_ACTIONS_COMPLETED:agent.actions.completed}
   security:
     jwt:
       # Placeholder default — replace via JWT_SECRET env variable. The default
