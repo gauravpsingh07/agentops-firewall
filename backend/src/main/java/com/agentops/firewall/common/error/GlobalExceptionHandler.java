@@ -45,6 +45,14 @@ public class GlobalExceptionHandler {
         return unauthorized("Invalid username or password.", request);
     }
 
+    @ExceptionHandler(AgentAuthenticationException.class)
+    public ResponseEntity<ApiError> handleAgentAuthentication(AgentAuthenticationException ex,
+                                                              HttpServletRequest request) {
+        // Uniform message so the caller cannot tell whether the agent name
+        // exists, the key is wrong, or the agent has been disabled.
+        return unauthorized("Invalid or missing agent API key.", request);
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex,
                                                          HttpServletRequest request) {

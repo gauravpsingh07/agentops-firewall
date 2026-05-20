@@ -59,6 +59,12 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/login").permitAll()
+                // Agent action submissions are authenticated by X-Agent-Key
+                // in AgentAuthenticationService rather than by a user JWT.
+                // The endpoint is opened in Spring Security so that the
+                // service layer can produce a uniform 401 when the agent
+                // credential is missing or wrong.
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/agent-actions").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/**").authenticated()
