@@ -32,7 +32,14 @@ public class PolicyCondition extends BaseEntity {
     @Column(name = "operator", length = 20, nullable = false)
     private String operator;
 
-    @Column(name = "value", columnDefinition = "text", nullable = false)
+    /**
+     * The right-hand side of the comparison. Stored as text to support
+     * scalar values and JSON arrays uniformly. Mapped to the column
+     * {@code condition_value}; the Java field name remains {@code value}
+     * because the SQL identifier {@code value} is reserved in H2 and is
+     * ambiguous in some PostgreSQL contexts.
+     */
+    @Column(name = "condition_value", columnDefinition = "text", nullable = false)
     private String value;
 
     public PolicyCondition() {

@@ -122,6 +122,25 @@
                     <parameters>true</parameters>
                 </configuration>
             </plugin>
+            <!--
+              Activate failsafe (already version-managed by spring-boot-parent)
+              so that *IT.java classes — slower integration tests by
+              convention — execute during the `verify` phase. Surefire
+              continues to run the fast *Test.java / *Tests.java unit
+              tests during `test`.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

@@ -60,7 +60,10 @@ create table policy_conditions (
     policy_id   uuid                        not null,
     field       varchar(120)                not null,
     operator    varchar(20)                 not null,
-    value       text                        not null,
+    -- "condition_value" rather than "value": value is reserved in H2 and
+    -- ambiguous in several PostgreSQL contexts. Mapped to
+    -- PolicyCondition#value in Java.
+    condition_value text                    not null,
     created_at  timestamp(6) with time zone not null,
     updated_at  timestamp(6) with time zone not null,
     version     bigint                      not null default 0,

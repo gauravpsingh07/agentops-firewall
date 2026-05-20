@@ -44,7 +44,12 @@ public class JwtService {
                 .claims(Map.of("role", role))
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiry))
-                .signWith(signingKey)
+                // Pin HS256 explicitly. Without this, jjwt 0.12.x infers
+                // HS512 for >=64-byte keys, which then refuses to verify
+                // tokens against shorter (but still >=32-byte) keys. HS256
+                // gives us stable behaviour across all valid secret sizes
+                // and is a sensible default for a portfolio-grade demo.
+                .signWith(signingKey, Jwts.SIG.HS256)
                 .compact();
     }
 
