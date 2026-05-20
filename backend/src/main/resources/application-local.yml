@@ -1,0 +1,14 @@
+# ---------------------------------------------------------------------------
+# Local profile overrides for AgentOps Firewall.
+# Activated automatically when SPRING_PROFILES_ACTIVE=local (the default).
+# ---------------------------------------------------------------------------
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: true
+
+logging:
+  level:
+    com.agentops.firewall: DEBUG

@@ -1,15 +1,48 @@
 # ---------------------------------------------------------------------------
-# AgentOps Firewall — backend base configuration.
-# Profile-specific overrides will live in application-local.yml,
-# application-test.yml, etc., introduced in later phases.
+# AgentOps Firewall — base configuration.
+#
+# All sensitive values are read from environment variables. Defaults below
+# are LOCAL-DEV PLACEHOLDERS only — they intentionally contain no real
+# secrets and must be overridden via environment / .env in any non-trivial
+# environment.
 # ---------------------------------------------------------------------------
 
 spring:
   application:
     name: agentops-firewall
 
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/agentops}
+    username: ${SPRING_DATASOURCE_USERNAME:agentops}
+    password: ${SPRING_DATASOURCE_PASSWORD:local_dev_only}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
 server:
   port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
 
 management:
   endpoints:
@@ -20,7 +53,19 @@ management:
     health:
       show-details: never
 
+agentops:
+  security:
+    jwt:
+      # Placeholder default — replace via JWT_SECRET env variable. The default
+      # is intentionally long enough for HS256 (>= 32 bytes) but is NOT a real
+      # secret and must be rotated in any deployment.
+      secret: ${JWT_SECRET:agentops_local_dev_only_placeholder_jwt_secret_change_me_please_thirtytwo_plus}
+      expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
+      issuer: ${JWT_ISSUER:agentops-firewall}
+
 logging:
   level:
     root: INFO
     com.agentops.firewall: DEBUG
+    org.hibernate.SQL: WARN
+    org.springframework.security: INFO

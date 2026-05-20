@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------------
+# Test profile — H2 in-memory database, Flyway disabled.
+# Hibernate creates/drops the schema based on the live @Entity classes,
+# so tests do not depend on the Postgres-specific migrations.
+# ---------------------------------------------------------------------------
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:agentops-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+
+  flyway:
+    enabled: false
+
+agentops:
+  security:
+    jwt:
+      # Test-only HS256 secret (>= 32 bytes). Never used outside tests.
+      secret: agentops_test_only_placeholder_jwt_secret_for_unit_tests_minimum_thirtytwo_bytes
+      expiration-minutes: 60
+      issuer: agentops-firewall-test
+
+logging:
+  level:
+    org.springframework.security: INFO

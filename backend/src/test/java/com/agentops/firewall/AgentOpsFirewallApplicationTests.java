@@ -2,18 +2,20 @@ package com.agentops.firewall;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
 /**
- * Smoke test for Phase 0 — verifies the Spring application context can be
- * loaded with the current minimal configuration. As new features land
- * (security, JPA, messaging) this test continues to act as a regression
- * canary for autoconfiguration.
+ * Application context smoke test. Loads the full Spring context against the
+ * H2-backed {@code test} profile and verifies it boots without error. As the
+ * project grows (security, JPA, messaging) this remains a regression canary
+ * for autoconfiguration.
  */
 @SpringBootTest
+@ActiveProfiles("test")
 class AgentOpsFirewallApplicationTests {
 
     @Test
     void contextLoads() {
-        // Intentionally empty — the context-load itself is the assertion.
+        // Intentionally empty — successful context-load is the assertion.
     }
 }
