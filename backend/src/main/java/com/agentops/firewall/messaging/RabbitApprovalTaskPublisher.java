@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -23,8 +25,15 @@ import java.util.UUID;
  * <p>Failures are logged but never rethrown — the synchronous approval
  * response is never blocked on broker availability. This mirrors the
  * fire-and-forget strategy used by the Kafka publisher.
+ *
+ * <p>This bean is only created when a {@link RabbitTemplate} is
+ * available. In the test profile (where RabbitMQ auto-config is
+ * excluded), tests provide a {@code @MockBean} for the
+ * {@link ApprovalTaskPublisher} interface instead.
  */
 @Component
+@Primary
+@ConditionalOnBean(RabbitTemplate.class)
 public class RabbitApprovalTaskPublisher implements ApprovalTaskPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(RabbitApprovalTaskPublisher.class);

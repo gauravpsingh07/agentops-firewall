@@ -4,10 +4,14 @@ import com.agentops.firewall.agent.Agent;
 import com.agentops.firewall.agent.AgentKeyService;
 import com.agentops.firewall.agent.AgentRepository;
 import com.agentops.firewall.audit.AuditLogRepository;
+import com.agentops.firewall.approval.ApprovalRequest;
+import com.agentops.firewall.approval.ApprovalRequestRepository;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.AgentStatus;
+import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.UserRole;
 import com.agentops.firewall.messaging.AgentActionEventPublisher;
+import com.agentops.firewall.messaging.ApprovalTaskPublisher;
 import com.agentops.firewall.policy.PolicyConditionRepository;
 import com.agentops.firewall.policy.PolicyEvaluationResult;
 import com.agentops.firewall.policy.PolicyRepository;
@@ -62,6 +66,8 @@ class ActionIngestionIT {
     @Autowired PolicyConditionRepository conditionRepository;
     @Autowired AuditLogRepository auditLogRepository;
     @MockBean AgentActionEventPublisher eventPublisher;
+    @MockBean ApprovalTaskPublisher approvalTaskPublisher;
+    @Autowired ApprovalRequestRepository approvalRequestRepository;
 
     private UUID agentId;
     private String agentName;
@@ -70,6 +76,7 @@ class ActionIngestionIT {
     @BeforeEach
     void seed() {
         policyDecisionRepository.deleteAll();
+        approvalRequestRepository.deleteAll();
         actionRequestRepository.deleteAll();
         agentRepository.deleteAll();
         conditionRepository.deleteAll();
@@ -92,6 +99,8 @@ class ActionIngestionIT {
 
     @AfterEach
     void cleanup() {
+        policyDecisionRepository.deleteAll();
+        approvalRequestRepository.deleteAll();
         actionRequestRepository.deleteAll();
         agentRepository.deleteAll();
         conditionRepository.deleteAll();
@@ -186,15 +195,24 @@ class ActionIngestionIT {
     }
 
     @Test
-    @DisplayName("NEEDS_APPROVAL outcome: DELETE_FILE -> status PENDING_APPROVAL")
+    @DisplayName("NEEDS_APPROVAL outcome: DELETE_FILE -> status PENDING_APPROVAL, ApprovalRequest created")
     void needsApprovalOutcomePersistsPending() throws Exception {
-        mockMvc.perform(post("/api/agent-actions")
+        MvcResult result = mockMvc.perform(post("/api/agent-actions")
                         .header("X-Agent-Key", rawKey)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(jsonBody(agentName, "DELETE_FILE", "MEDIUM", null)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.decision").value("NEEDS_APPROVAL"))
-                .andExpect(jsonPath("$.status").value("PENDING_APPROVAL"));
+                .andExpect(jsonPath("$.status").value("PENDING_APPROVAL"))
+                .andExpect(jsonPath("$.approvalId").isNotEmpty())
+                .andReturn();
+
+        String approvalIdStr = objectMapper.readTree(
+                result.getResponse().getContentAsString()).get("approvalId").asText();
+        UUID approvalId = UUID.fromString(approvalIdStr);
+        ApprovalRequest approval = approvalRequestRepository.findById(approvalId).orElseThrow();
+        assertThat(approval.getStatus()).isEqualTo(ApprovalStatus.PENDING);
+        assertThat(approval.getExpiresAt()).isNotNull();
     }
 
     @Test
