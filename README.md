@@ -193,4 +193,4 @@ capture guidance.
 
 ## License
 
-TBD.
+Released under the [MIT License](LICENSE) — © 2026 Gaurav Singh.
