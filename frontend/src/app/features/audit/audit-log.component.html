@@ -1,0 +1,142 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-semibold text-white">Audit log</h2>
+      <p class="text-sm text-slate-400">
+        Append-only record of every decision, approval, and security event. The list is
+        sorted newest first.
+      </p>
+    </div>
+    @if (page(); as p) {
+      <span class="text-xs text-slate-500">
+        Showing {{ p.content.length }} of {{ p.totalElements }}
+      </span>
+    }
+  </header>
+
+  <form
+    [formGroup]="filterForm"
+    (ngSubmit)="applyFilters()"
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 rounded-xl border border-slate-800 bg-agentops-card p-4"
+  >
+    <label class="text-xs text-slate-400 lg:col-span-2">
+      Event type
+      <input
+        type="text"
+        formControlName="eventType"
+        placeholder="ACTION_DECIDED"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+      />
+    </label>
+    <label class="text-xs text-slate-400">
+      Actor type
+      <input
+        type="text"
+        formControlName="actorType"
+        placeholder="USER / AGENT"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+      />
+    </label>
+    <label class="text-xs text-slate-400">
+      Subject type
+      <input
+        type="text"
+        formControlName="subjectType"
+        placeholder="ACTION / POLICY"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+      />
+    </label>
+    <label class="text-xs text-slate-400">
+      From
+      <input
+        type="datetime-local"
+        formControlName="from"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+      />
+    </label>
+    <label class="text-xs text-slate-400">
+      To
+      <input
+        type="datetime-local"
+        formControlName="to"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+      />
+    </label>
+    <div class="flex items-end gap-2 lg:col-span-6">
+      <button type="submit" class="rounded-md bg-agentops-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500">
+        Apply
+      </button>
+      <button type="button" (click)="clearFilters()" class="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:border-slate-500">
+        Reset
+      </button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <div class="rounded-xl border border-slate-800 bg-agentops-card overflow-hidden">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-900/60 text-xs uppercase text-slate-400">
+        <tr>
+          <th class="px-4 py-3 font-medium">When</th>
+          <th class="px-4 py-3 font-medium">Event</th>
+          <th class="px-4 py-3 font-medium">Actor</th>
+          <th class="px-4 py-3 font-medium">Subject</th>
+          <th class="px-4 py-3 font-medium">Summary</th>
+          <th class="px-4 py-3 font-medium text-right">Details</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        @if (loading()) {
+          <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">Loading…</td></tr>
+        } @else if (!hasResults()) {
+          <tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">No audit events match these filters.</td></tr>
+        } @else {
+          @for (entry of page()!.content; track entry.id) {
+            <tr class="hover:bg-slate-900/40">
+              <td class="px-4 py-2 text-slate-400 whitespace-nowrap">{{ entry.createdAt | date: 'short' }}</td>
+              <td class="px-4 py-2 text-slate-100">{{ entry.eventType }}</td>
+              <td class="px-4 py-2 text-slate-300">{{ entry.actorType || '—' }}</td>
+              <td class="px-4 py-2 text-slate-300">{{ entry.subjectType || '—' }}</td>
+              <td class="px-4 py-2 text-slate-300 max-w-md truncate">{{ entry.summary || '—' }}</td>
+              <td class="px-4 py-2 text-right">
+                @if (entry.detailsJson) {
+                  <button
+                    type="button"
+                    (click)="toggle(entry.id)"
+                    class="text-xs text-agentops-accent hover:underline"
+                  >
+                    {{ isExpanded(entry.id) ? 'Hide' : 'View' }}
+                  </button>
+                }
+              </td>
+            </tr>
+            @if (isExpanded(entry.id)) {
+              <tr class="bg-slate-950/60">
+                <td colspan="6" class="px-4 py-3">
+                  <pre class="text-xs font-mono text-slate-300 whitespace-pre-wrap break-all">{{ formatDetails(entry.detailsJson) }}</pre>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (page(); as p) {
+    @if (p.totalPages > 1) {
+      <div class="flex items-center justify-between text-xs text-slate-400">
+        <span>Page {{ p.number + 1 }} of {{ p.totalPages }}</span>
+        <div class="flex gap-2">
+          <button type="button" (click)="goToPage(-1)" [disabled]="p.first" class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500">Previous</button>
+          <button type="button" (click)="goToPage(1)" [disabled]="p.last" class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500">Next</button>
+        </div>
+      </div>
+    }
+  }
+</section>

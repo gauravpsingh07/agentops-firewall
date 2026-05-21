@@ -61,9 +61,8 @@ export const appRoutes: Routes = [
       },
       {
         path: 'audit',
-        data: { feature: 'Audit log' },
         loadComponent: () =>
-          import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent)
+          import('./features/audit/audit-log.component').then((m) => m.AuditLogComponent)
       }
     ]
   },
