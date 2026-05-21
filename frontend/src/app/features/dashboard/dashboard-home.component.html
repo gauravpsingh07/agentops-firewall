@@ -1,0 +1,137 @@
+<section class="space-y-6">
+  <header>
+    <h2 class="text-2xl font-semibold text-white">
+      Welcome{{ user()?.username ? ', ' + user()?.username : '' }}.
+    </h2>
+    <p class="text-sm text-slate-400">
+      A live snapshot of agent activity, policy decisions, and pending human reviews.
+    </p>
+  </header>
+
+  @if (errorMessage()) {
+    <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  @if (loading()) {
+    <div class="rounded-xl border border-slate-800 bg-agentops-card p-6 text-center text-slate-400">Loading dashboard…</div>
+  } @else if (summary()) {
+    @let s = summary()!;
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <a routerLink="/dashboard/approvals" class="rounded-xl border border-slate-800 bg-agentops-card p-4 hover:border-slate-600">
+        <div class="text-xs uppercase tracking-wide text-slate-400">Pending approvals</div>
+        <div class="mt-1 text-3xl font-semibold text-yellow-300">{{ s.pendingApprovals }}</div>
+      </a>
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-4">
+        <div class="text-xs uppercase tracking-wide text-slate-400">Allowed</div>
+        <div class="mt-1 text-3xl font-semibold text-emerald-300">{{ s.allowedActions }}</div>
+        <div class="text-[10px] text-slate-500 mt-1">+ {{ s.approvedActions }} via approval</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-4">
+        <div class="text-xs uppercase tracking-wide text-slate-400">Denied</div>
+        <div class="mt-1 text-3xl font-semibold text-red-300">{{ s.deniedActions }}</div>
+        <div class="text-[10px] text-slate-500 mt-1">+ {{ s.rejectedActions }} via rejection</div>
+      </div>
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-4">
+        <div class="text-xs uppercase tracking-wide text-slate-400">Active agents</div>
+        <div class="mt-1 text-3xl font-semibold text-white">{{ s.activeAgents }}<span class="text-base text-slate-500"> / {{ s.totalAgents }}</span></div>
+        <div class="text-[10px] text-slate-500 mt-1">{{ s.enabledPolicies }} of {{ s.totalPolicies }} policies enabled</div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-5">
+        <h3 class="text-sm font-semibold text-white">Risk distribution</h3>
+        <p class="text-xs text-slate-500 mb-3">Action requests by risk level (all time)</p>
+        @if (riskBars().length === 0) {
+          <p class="text-xs text-slate-500">No actions yet.</p>
+        } @else {
+          <div class="space-y-2">
+            @for (bar of riskBars(); track bar.label) {
+              <div>
+                <div class="flex justify-between text-xs text-slate-400">
+                  <span>{{ bar.label }}</span>
+                  <span>{{ bar.count }}</span>
+                </div>
+                <div class="mt-1 h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div class="h-full rounded-full {{ bar.tone }}" [style.width.%]="bar.percent"></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-5">
+        <h3 class="text-sm font-semibold text-white">Decision distribution</h3>
+        <p class="text-xs text-slate-500 mb-3">Action requests by final status</p>
+        @if (decisionBars().length === 0) {
+          <p class="text-xs text-slate-500">No actions yet.</p>
+        } @else {
+          <div class="space-y-2">
+            @for (bar of decisionBars(); track bar.label) {
+              <div>
+                <div class="flex justify-between text-xs text-slate-400">
+                  <span>{{ bar.label }}</span>
+                  <span>{{ bar.count }}</span>
+                </div>
+                <div class="mt-1 h-2 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div class="h-full rounded-full {{ bar.tone }}" [style.width.%]="bar.percent"></div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-white">Recent actions</h3>
+          <a routerLink="/dashboard/actions" class="text-xs text-agentops-accent hover:underline">View all</a>
+        </div>
+        @if (recentActions().length === 0) {
+          <p class="text-xs text-slate-500">No actions yet.</p>
+        } @else {
+          <ul class="divide-y divide-slate-800 text-sm">
+            @for (a of recentActions(); track a.id) {
+              <li class="py-2 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="text-slate-100 truncate">{{ a.actionType }} · {{ a.resource }}</div>
+                  <div class="text-[10px] text-slate-500">{{ a.createdAt | date: 'short' }}</div>
+                </div>
+                <span class="text-xs whitespace-nowrap {{ statusTone(a.status) }}">{{ a.status }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-semibold text-white">Recent audit events</h3>
+          <a routerLink="/dashboard/audit" class="text-xs text-agentops-accent hover:underline">View all</a>
+        </div>
+        @if (recentAudit().length === 0) {
+          <p class="text-xs text-slate-500">No audit events yet.</p>
+        } @else {
+          <ul class="divide-y divide-slate-800 text-sm">
+            @for (e of recentAudit(); track e.id) {
+              <li class="py-2">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-slate-100 truncate">{{ e.eventType }}</span>
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap">{{ e.createdAt | date: 'short' }}</span>
+                </div>
+                @if (e.summary) {
+                  <div class="text-xs text-slate-400 mt-0.5 truncate">{{ e.summary }}</div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </div>
+    </div>
+  }
+</section>
