@@ -31,23 +31,36 @@ services:
     restart: unless-stopped
 
   kafka:
-    image: bitnami/kafka:3.7
+    # Switched from bitnami/kafka to apache/kafka: Bitnami stopped
+    # publishing community Kafka images on Docker Hub in August 2025,
+    # so the previous `bitnami/kafka:3.7` tag is no longer pullable.
+    # apache/kafka is the official upstream image; KRaft mode is built
+    # in and the env-var prefix is KAFKA_ (no KAFKA_CFG_).
+    image: apache/kafka:3.9.0
     container_name: agentops-kafka
     environment:
       # KRaft mode — single-node dev broker, no Zookeeper.
-      KAFKA_CFG_NODE_ID: "1"
-      KAFKA_CFG_PROCESS_ROLES: "controller,broker"
-      KAFKA_CFG_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
-      KAFKA_CFG_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
-      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
-      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
-      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
-      ALLOW_PLAINTEXT_LISTENER: "yes"
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: "broker,controller"
+      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
+      KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
+      # Required single-broker tunables: with one replica per topic the
+      # internal __consumer_offsets / __transaction_state topics must
+      # also be single-replicated, otherwise broker startup fails.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      # KRaft requires a cluster id; any 22-char base64 string is fine
+      # for a local single-broker setup.
+      CLUSTER_ID: "MkU3OEVBNTcwNTJENDM2Qg"
     ports:
       - "9092:9092"
     healthcheck:
-      test: ["CMD-SHELL", "/opt/bitnami/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 15s
       timeout: 10s
       retries: 8
