@@ -22,9 +22,8 @@ export const appRoutes: Routes = [
       },
       {
         path: 'actions',
-        data: { feature: 'Action feed' },
         loadComponent: () =>
-          import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent)
+          import('./features/actions/action-feed.component').then((m) => m.ActionFeedComponent)
       },
       {
         path: 'policies',

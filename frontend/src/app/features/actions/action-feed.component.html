@@ -1,0 +1,135 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-semibold text-white">Action feed</h2>
+      <p class="text-sm text-slate-400">Proposed agent actions and their policy decisions.</p>
+    </div>
+    @if (page(); as p) {
+      <span class="text-xs text-slate-500">
+        Showing {{ p.content.length }} of {{ p.totalElements }}
+      </span>
+    }
+  </header>
+
+  <form
+    [formGroup]="filterForm"
+    (ngSubmit)="applyFilters()"
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 rounded-xl border border-slate-800 bg-agentops-card p-4"
+  >
+    <label class="text-xs text-slate-400">
+      Agent
+      <select formControlName="agentId" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (agent of agentOptions(); track agent.id) {
+          <option [value]="agent.id">{{ agent.name }}</option>
+        }
+      </select>
+    </label>
+    <label class="text-xs text-slate-400">
+      Action type
+      <select formControlName="actionType" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (t of actionTypes; track t) {
+          <option [value]="t">{{ t }}</option>
+        }
+      </select>
+    </label>
+    <label class="text-xs text-slate-400">
+      Status
+      <select formControlName="status" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (s of statuses; track s) {
+          <option [value]="s">{{ s }}</option>
+        }
+      </select>
+    </label>
+    <label class="text-xs text-slate-400">
+      Risk
+      <select formControlName="riskLevel" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (r of riskLevels; track r) {
+          <option [value]="r">{{ r }}</option>
+        }
+      </select>
+    </label>
+    <div class="flex items-end gap-2">
+      <button type="submit" class="rounded-md bg-agentops-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500">
+        Apply
+      </button>
+      <button type="button" (click)="clearFilters()" class="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:border-slate-500">
+        Reset
+      </button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <div class="rounded-xl border border-slate-800 bg-agentops-card overflow-hidden">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-900/60 text-xs uppercase text-slate-400">
+        <tr>
+          <th class="px-4 py-3 font-medium">When</th>
+          <th class="px-4 py-3 font-medium">Action</th>
+          <th class="px-4 py-3 font-medium">Resource</th>
+          <th class="px-4 py-3 font-medium">Risk</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium">Reason</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        @if (loading()) {
+          <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-slate-400">Loading…</td>
+          </tr>
+        } @else if (!hasResults()) {
+          <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-slate-400">
+              No actions match these filters yet.
+            </td>
+          </tr>
+        } @else {
+          @for (row of page()!.content; track row.id) {
+            <tr class="hover:bg-slate-900/40">
+              <td class="px-4 py-2 text-slate-400 whitespace-nowrap">{{ row.createdAt | date: 'short' }}</td>
+              <td class="px-4 py-2 text-slate-100">{{ row.actionType }}</td>
+              <td class="px-4 py-2 text-slate-300">{{ row.resource }}</td>
+              <td class="px-4 py-2">
+                <span class="inline-flex items-center rounded border px-1.5 py-0.5 text-xs {{ riskColor(row.riskLevel) }}">
+                  {{ row.riskLevel }}
+                </span>
+              </td>
+              <td class="px-4 py-2 font-medium {{ statusColor(row.status) }}">{{ row.status }}</td>
+              <td class="px-4 py-2 text-slate-400 max-w-xs truncate">{{ row.decisionReason || '—' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  @if (page(); as p) {
+    @if (p.totalPages > 1) {
+      <div class="flex items-center justify-between text-xs text-slate-400">
+        <span>Page {{ p.number + 1 }} of {{ p.totalPages }}</span>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            (click)="goToPage(-1)"
+            [disabled]="p.first"
+            class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500"
+          >Previous</button>
+          <button
+            type="button"
+            (click)="goToPage(1)"
+            [disabled]="p.last"
+            class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500"
+          >Next</button>
+        </div>
+      </div>
+    }
+  }
+</section>
