@@ -16,4 +16,6 @@ public interface PolicyRepository extends JpaRepository<Policy, UUID> {
     Optional<Policy> findByName(String name);
 
     boolean existsByName(String name);
+
+    long countByEnabledTrue();
 }
