@@ -83,7 +83,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Unit tests (Karma + ChromeHeadless)
+      - name: Unit tests (Karma + ChromeHeadlessNoSandbox)
         env:
           CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
         run: npm test
