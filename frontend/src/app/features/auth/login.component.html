@@ -1,0 +1,66 @@
+<div class="min-h-screen bg-agentops-bg flex items-center justify-center px-4">
+  <div class="w-full max-w-md">
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl font-semibold text-white">AgentOps Firewall</h1>
+      <p class="mt-2 text-sm text-slate-400">Sign in to review agent activity, policies, and approvals.</p>
+    </header>
+
+    <form
+      class="bg-agentops-card border border-slate-800 rounded-xl p-6 shadow-lg space-y-4"
+      [formGroup]="form"
+      (ngSubmit)="submit()"
+      novalidate
+    >
+      <div>
+        <label for="username" class="block text-xs font-medium text-slate-300 uppercase tracking-wide">Username</label>
+        <input
+          id="username"
+          type="text"
+          formControlName="username"
+          autocomplete="username"
+          class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100 focus:border-agentops-accent focus:outline-none focus:ring-1 focus:ring-agentops-accent"
+        />
+        @if (form.controls.username.touched && form.controls.username.invalid) {
+          <p class="mt-1 text-xs text-red-400">Username is required.</p>
+        }
+      </div>
+
+      <div>
+        <label for="password" class="block text-xs font-medium text-slate-300 uppercase tracking-wide">Password</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+          class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-slate-100 focus:border-agentops-accent focus:outline-none focus:ring-1 focus:ring-agentops-accent"
+        />
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <p class="mt-1 text-xs text-red-400">Password is required.</p>
+        }
+      </div>
+
+      @if (errorMessage()) {
+        <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      <button
+        type="submit"
+        [disabled]="submitting()"
+        class="w-full rounded-md bg-agentops-accent px-3 py-2 text-sm font-medium text-white disabled:opacity-60 hover:bg-blue-500 transition-colors"
+      >
+        {{ submitting() ? 'Signing in…' : 'Sign in' }}
+      </button>
+    </form>
+
+    <section class="mt-6 text-xs text-slate-500 leading-relaxed">
+      <p class="font-medium text-slate-400 mb-1">Local demo credentials</p>
+      <ul class="space-y-0.5">
+        <li><code>admin</code> / <code>admin123</code> — full access</li>
+        <li><code>reviewer</code> / <code>reviewer123</code> — approvals + read</li>
+        <li><code>viewer</code> / <code>viewer123</code> — read-only</li>
+      </ul>
+    </section>
+  </div>
+</div>
