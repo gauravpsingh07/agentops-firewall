@@ -1,0 +1,88 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-semibold text-white">Policies</h2>
+      <p class="text-sm text-slate-400">Ordered by priority; the highest-priority match wins.</p>
+    </div>
+    @if (canEdit()) {
+      <a
+        routerLink="new"
+        class="rounded-md bg-agentops-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500"
+      >
+        New policy
+      </a>
+    }
+  </header>
+
+  @if (errorMessage()) {
+    <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <div class="rounded-xl border border-slate-800 bg-agentops-card overflow-hidden">
+    <table class="w-full text-left text-sm">
+      <thead class="bg-slate-900/60 text-xs uppercase text-slate-400">
+        <tr>
+          <th class="px-4 py-3 font-medium w-16">Pri.</th>
+          <th class="px-4 py-3 font-medium">Name</th>
+          <th class="px-4 py-3 font-medium">Effect</th>
+          <th class="px-4 py-3 font-medium">Action type</th>
+          <th class="px-4 py-3 font-medium">Min risk</th>
+          <th class="px-4 py-3 font-medium">Conditions</th>
+          <th class="px-4 py-3 font-medium">Status</th>
+          <th class="px-4 py-3 font-medium text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-800">
+        @if (loading()) {
+          <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">Loading…</td></tr>
+        } @else if (items().length === 0) {
+          <tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">No policies defined yet.</td></tr>
+        } @else {
+          @for (policy of items(); track policy.id) {
+            <tr class="hover:bg-slate-900/40">
+              <td class="px-4 py-2 text-slate-300">{{ policy.priority }}</td>
+              <td class="px-4 py-2">
+                <div class="text-slate-100 font-medium">{{ policy.name }}</div>
+                @if (policy.description) {
+                  <div class="text-xs text-slate-500 mt-0.5">{{ policy.description }}</div>
+                }
+              </td>
+              <td class="px-4 py-2 font-medium {{ effectColor(policy.effect) }}">{{ policy.effect }}</td>
+              <td class="px-4 py-2 text-slate-300">{{ policy.actionType || '—' }}</td>
+              <td class="px-4 py-2 text-slate-300">{{ policy.minRiskLevel || '—' }}</td>
+              <td class="px-4 py-2 text-slate-400">{{ policy.conditions.length }}</td>
+              <td class="px-4 py-2">
+                @if (canEdit()) {
+                  <button
+                    type="button"
+                    (click)="toggleEnabled(policy)"
+                    class="rounded-md border px-2 py-0.5 text-xs"
+                    [class]="policy.enabled
+                      ? 'border-emerald-700/40 bg-emerald-900/30 text-emerald-200'
+                      : 'border-slate-700 bg-slate-900/50 text-slate-400'"
+                  >
+                    {{ policy.enabled ? 'Enabled' : 'Disabled' }}
+                  </button>
+                } @else {
+                  <span class="text-xs" [class]="policy.enabled ? 'text-emerald-300' : 'text-slate-500'">
+                    {{ policy.enabled ? 'Enabled' : 'Disabled' }}
+                  </span>
+                }
+              </td>
+              <td class="px-4 py-2 text-right">
+                @if (canEdit()) {
+                  <a
+                    [routerLink]="[policy.id, 'edit']"
+                    class="text-xs text-agentops-accent hover:underline"
+                  >Edit</a>
+                }
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

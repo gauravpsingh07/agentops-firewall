@@ -27,9 +27,26 @@ export const appRoutes: Routes = [
       },
       {
         path: 'policies',
-        data: { feature: 'Policy management' },
-        loadComponent: () =>
-          import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent)
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            loadComponent: () =>
+              import('./features/policies/policy-list.component').then((m) => m.PolicyListComponent)
+          },
+          {
+            path: 'new',
+            canActivate: [roleGuard('ADMIN')],
+            loadComponent: () =>
+              import('./features/policies/policy-edit.component').then((m) => m.PolicyEditComponent)
+          },
+          {
+            path: ':id/edit',
+            canActivate: [roleGuard('ADMIN')],
+            loadComponent: () =>
+              import('./features/policies/policy-edit.component').then((m) => m.PolicyEditComponent)
+          }
+        ]
       },
       {
         path: 'simulator',
