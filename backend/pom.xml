@@ -78,6 +78,12 @@
             <artifactId>spring-kafka</artifactId>
         </dependency>
 
+        <!-- RabbitMQ (AMQP) for approval workflow tasks -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-amqp</artifactId>
+        </dependency>
+
         <!-- JSON Web Tokens (jjwt 0.12.x API) -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

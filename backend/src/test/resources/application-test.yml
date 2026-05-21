@@ -18,6 +18,12 @@ spring:
         delivery.timeout.ms: 1000
         request.timeout.ms: 500
 
+  # RabbitMQ autoconfiguration is excluded entirely in the test profile.
+  # Tests that exercise approval-task publishing mock the
+  # ApprovalTaskPublisher bean — no broker connection is needed.
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration
+
   datasource:
     url: jdbc:h2:mem:agentops-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
     username: sa
@@ -42,6 +48,10 @@ agentops:
         actions-received: test.agent.actions.received
         actions-decided: test.agent.actions.decided
         actions-completed: test.agent.actions.completed
+    rabbitmq:
+      queue:
+        approval-requests: test.approval.requests
+        approval-notifications: test.approval.notifications
   security:
     jwt:
       # Test-only HS256 secret (>= 32 bytes). Never used outside tests.

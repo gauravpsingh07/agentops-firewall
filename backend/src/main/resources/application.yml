@@ -49,6 +49,12 @@ spring:
         delivery.timeout.ms: 8000
         request.timeout.ms: 5000
 
+  rabbitmq:
+    host: ${SPRING_RABBITMQ_HOST:localhost}
+    port: ${SPRING_RABBITMQ_PORT:5672}
+    username: ${SPRING_RABBITMQ_USERNAME:guest}
+    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+
 server:
   port: 8080
   error:
@@ -71,6 +77,10 @@ agentops:
         actions-received:  ${AGENTOPS_KAFKA_TOPIC_ACTIONS_RECEIVED:agent.actions.received}
         actions-decided:   ${AGENTOPS_KAFKA_TOPIC_ACTIONS_DECIDED:agent.actions.decided}
         actions-completed: ${AGENTOPS_KAFKA_TOPIC_ACTIONS_COMPLETED:agent.actions.completed}
+    rabbitmq:
+      queue:
+        approval-requests:      ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_REQUESTS:approval.requests}
+        approval-notifications: ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_NOTIFICATIONS:approval.notifications}
   security:
     jwt:
       # Placeholder default — replace via JWT_SECRET env variable. The default

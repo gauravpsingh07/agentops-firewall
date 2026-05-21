@@ -12,6 +12,7 @@ import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.PolicyOutcome;
 import com.agentops.firewall.messaging.AgentActionEventPublisher;
+import com.agentops.firewall.messaging.ApprovalTaskPublisher;
 import com.agentops.firewall.policy.PolicyEvaluationContext;
 import com.agentops.firewall.policy.PolicyEvaluationResult;
 import com.agentops.firewall.policy.PolicyEvaluator;
@@ -61,6 +62,7 @@ public class ActionIngestionService {
     private final PolicyEvaluator policyEvaluator;
     private final AuditService auditService;
     private final AgentActionEventPublisher eventPublisher;
+    private final ApprovalTaskPublisher approvalTaskPublisher;
     private final ObjectMapper objectMapper;
 
     public ActionIngestionService(AgentAuthenticationService agentAuthenticationService,
@@ -71,6 +73,7 @@ public class ActionIngestionService {
                                    PolicyEvaluator policyEvaluator,
                                    AuditService auditService,
                                    AgentActionEventPublisher eventPublisher,
+                                   ApprovalTaskPublisher approvalTaskPublisher,
                                    ObjectMapper objectMapper) {
         this.agentAuthenticationService = agentAuthenticationService;
         this.agentService = agentService;
@@ -80,6 +83,7 @@ public class ActionIngestionService {
         this.policyEvaluator = policyEvaluator;
         this.auditService = auditService;
         this.eventPublisher = eventPublisher;
+        this.approvalTaskPublisher = approvalTaskPublisher;
         this.objectMapper = objectMapper;
     }
 
@@ -174,6 +178,8 @@ public class ActionIngestionService {
                             "expiresAt", approval.getExpiresAt().toString()
                     )
             );
+
+            approvalTaskPublisher.publishApprovalRequested(approval, saved, agent);
         }
 
         agentService.markUsed(agent.getId());
