@@ -8,6 +8,11 @@ import { defineConfig, devices } from '@playwright/test';
  * GitHub Actions workflow — a separate `e2e.yml` workflow brings up
  * docker-compose and invokes Playwright on demand.
  *
+ * The screenshot-capture script (`e2e/screenshots.spec.ts`) is excluded
+ * from default runs via `testIgnore` because it writes artefacts into
+ * `docs/screenshots/`, which is not test behaviour. Run it explicitly
+ * with `npm run screenshots`.
+ *
  * Local usage:
  *   # one-time browser install:
  *   npx playwright install chromium
@@ -17,12 +22,14 @@ import { defineConfig, devices } from '@playwright/test';
  *   cd frontend && npm start
  *
  *   # in another terminal:
- *   cd frontend && npm run test:e2e
+ *   cd frontend && npm run test:e2e        # smoke + approval-flow
+ *   cd frontend && npm run screenshots     # capture docs/screenshots/*.png
  */
 const BASE_URL = process.env['E2E_BASE_URL'] ?? 'http://localhost:4200';
 
 export default defineConfig({
   testDir: './e2e',
+  testIgnore: '**/screenshots.spec.ts',
   fullyParallel: false,
   retries: process.env['CI'] ? 2 : 0,
   workers: 1,

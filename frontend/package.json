@@ -10,7 +10,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test --watch=false",
     "test:e2e": "playwright test",
-    "test:e2e:install": "playwright install chromium"
+    "test:e2e:install": "playwright install chromium",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts"
   },
   "dependencies": {
     "@angular/animations": "^18.2.0",
