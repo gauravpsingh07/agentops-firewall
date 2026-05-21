@@ -26,6 +26,7 @@ it through a human reviewer, and produces a complete audit trail.
 
 For the request-flow walkthrough, see [`docs/architecture.md`](docs/architecture.md).
 For the endpoint reference, see [`docs/api.md`](docs/api.md).
+For screenshots of every dashboard page, see [`docs/screenshots/`](docs/screenshots/).
 
 ---
 
@@ -159,6 +160,24 @@ to keep PR feedback fast.
 | `mvn` not found | Use the wrapper: `./mvnw` (or `mvnw.cmd` on Windows). |
 | Login returns 500 | JWT signing key not set. Confirm `JWT_SECRET` in `backend/.env` or use the local default. |
 | Karma tests can't find Chrome | Install Chrome stable, or set `CHROME_BIN` to your Chrome path. |
+
+---
+
+## Demo
+
+| Page | Preview |
+|---|---|
+| Login | `docs/screenshots/01-login.png` |
+| Dashboard overview | `docs/screenshots/02-dashboard.png` |
+| Action feed | `docs/screenshots/03-action-feed.png` |
+| Policies | `docs/screenshots/04-policies-list.png` |
+| Policy editor | `docs/screenshots/05-policies-edit.png` |
+| Simulator | `docs/screenshots/06-simulator.png` |
+| Approval inbox | `docs/screenshots/07-approvals.png` |
+| Audit log | `docs/screenshots/08-audit-log.png` |
+
+See [`docs/screenshots/README.md`](docs/screenshots/README.md) for the
+capture guidance.
 
 ---
 
