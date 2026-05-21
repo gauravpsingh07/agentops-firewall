@@ -1,0 +1,147 @@
+<section class="space-y-4">
+  <header class="flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <h2 class="text-2xl font-semibold text-white">Approvals</h2>
+      <p class="text-sm text-slate-400">
+        Agent actions awaiting a human decision. Approving/rejecting writes an audit
+        entry and publishes a completion event.
+      </p>
+    </div>
+    @if (page(); as p) {
+      <span class="text-xs text-slate-500">
+        Showing {{ p.content.length }} of {{ p.totalElements }}
+      </span>
+    }
+  </header>
+
+  <form
+    [formGroup]="filterForm"
+    (ngSubmit)="applyFilters()"
+    class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 rounded-xl border border-slate-800 bg-agentops-card p-4"
+  >
+    <label class="text-xs text-slate-400">
+      Status
+      <select formControlName="status" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+      </select>
+    </label>
+    <label class="text-xs text-slate-400">
+      Action type
+      <select formControlName="actionType" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (t of actionTypes; track t) { <option [value]="t">{{ t }}</option> }
+      </select>
+    </label>
+    <label class="text-xs text-slate-400">
+      Risk
+      <select formControlName="riskLevel" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+        <option value="">Any</option>
+        @for (r of riskLevels; track r) { <option [value]="r">{{ r }}</option> }
+      </select>
+    </label>
+    <div class="flex items-end gap-2">
+      <button type="submit" class="rounded-md bg-agentops-accent px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-500">
+        Apply
+      </button>
+      <button type="button" (click)="clearFilters()" class="rounded-md border border-slate-700 px-3 py-1.5 text-sm text-slate-300 hover:border-slate-500">
+        Reset
+      </button>
+    </div>
+  </form>
+
+  @if (errorMessage()) {
+    <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <div class="space-y-2">
+    @if (loading()) {
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-6 text-center text-slate-400">Loading…</div>
+    } @else if (!hasResults()) {
+      <div class="rounded-xl border border-slate-800 bg-agentops-card p-6 text-center text-slate-400">
+        No approvals match these filters.
+      </div>
+    } @else {
+      @for (approval of page()!.content; track approval.id) {
+        <article class="rounded-xl border border-slate-800 bg-agentops-card p-4 space-y-3">
+          <header class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 text-sm">
+              <span class="text-slate-100 font-medium">{{ approval.actionType }}</span>
+              <span class="text-slate-400">·</span>
+              <span class="text-slate-300">{{ approval.resource || '—' }}</span>
+              <span class="inline-flex items-center rounded border px-1.5 py-0.5 text-xs {{ riskTone(approval.riskLevel) }}">
+                {{ approval.riskLevel }}
+              </span>
+            </div>
+            <div class="text-xs text-slate-400 flex items-center gap-2">
+              <span class="font-medium {{ statusTone(approval.status) }}">{{ approval.status }}</span>
+              <span>·</span>
+              <span>{{ approval.createdAt | date: 'short' }}</span>
+            </div>
+          </header>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-400">
+            <div>
+              <span class="text-slate-500">Agent:</span>
+              <span class="text-slate-300 ml-1">{{ approval.agentName || '—' }}</span>
+            </div>
+            <div>
+              <span class="text-slate-500">Reason:</span>
+              <span class="text-slate-300 ml-1">{{ approval.decisionReason || '—' }}</span>
+            </div>
+          </div>
+
+          @if (approval.status === 'PENDING' && canDecide()) {
+            <div class="flex flex-col sm:flex-row gap-2 pt-2 border-t border-slate-800">
+              <input
+                type="text"
+                placeholder="Optional reviewer note"
+                [value]="notes()[approval.id] || ''"
+                (input)="setNote(approval.id, $any($event.target).value)"
+                class="flex-1 rounded-md bg-slate-900 border border-slate-700 px-3 py-1.5 text-sm text-slate-100"
+              />
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  [disabled]="isBusy(approval.id)"
+                  (click)="approve(approval)"
+                  class="rounded-md bg-emerald-700 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 hover:bg-emerald-600"
+                >Approve</button>
+                <button
+                  type="button"
+                  [disabled]="isBusy(approval.id)"
+                  (click)="reject(approval)"
+                  class="rounded-md bg-red-800 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 hover:bg-red-700"
+                >Reject</button>
+              </div>
+            </div>
+          } @else if (approval.status !== 'PENDING') {
+            <div class="pt-2 border-t border-slate-800 text-xs text-slate-400">
+              Decided by <span class="text-slate-200">{{ approval.reviewerUsername || '—' }}</span>
+              @if (approval.decidedAt) {
+                on {{ approval.decidedAt | date: 'short' }}
+              }
+              @if (approval.reviewerNote) {
+                <div class="mt-1 text-slate-300 italic">“{{ approval.reviewerNote }}”</div>
+              }
+            </div>
+          }
+        </article>
+      }
+    }
+  </div>
+
+  @if (page(); as p) {
+    @if (p.totalPages > 1) {
+      <div class="flex items-center justify-between text-xs text-slate-400">
+        <span>Page {{ p.number + 1 }} of {{ p.totalPages }}</span>
+        <div class="flex gap-2">
+          <button type="button" (click)="goToPage(-1)" [disabled]="p.first" class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500">Previous</button>
+          <button type="button" (click)="goToPage(1)" [disabled]="p.last" class="rounded-md border border-slate-700 px-2 py-1 disabled:opacity-40 hover:border-slate-500">Next</button>
+        </div>
+      </div>
+    }
+  }
+</section>

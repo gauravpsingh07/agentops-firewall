@@ -56,9 +56,8 @@ export const appRoutes: Routes = [
       {
         path: 'approvals',
         canActivate: [roleGuard('ADMIN', 'REVIEWER')],
-        data: { feature: 'Approval inbox' },
         loadComponent: () =>
-          import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent)
+          import('./features/approvals/approval-inbox.component').then((m) => m.ApprovalInboxComponent)
       },
       {
         path: 'audit',
