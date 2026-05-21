@@ -5,8 +5,11 @@ import com.agentops.firewall.action.dto.SubmitActionRequest;
 import com.agentops.firewall.agent.Agent;
 import com.agentops.firewall.agent.AgentAuthenticationService;
 import com.agentops.firewall.agent.AgentService;
+import com.agentops.firewall.approval.ApprovalRequest;
+import com.agentops.firewall.approval.ApprovalRequestRepository;
 import com.agentops.firewall.audit.AuditService;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
+import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.PolicyOutcome;
 import com.agentops.firewall.messaging.AgentActionEventPublisher;
 import com.agentops.firewall.policy.PolicyEvaluationContext;
@@ -18,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Orchestrates the action-ingestion pipeline:
@@ -32,21 +37,27 @@ import java.util.Map;
  *   <li>Map the outcome to a terminal-or-pending action status
  *       (ALLOWED / DENIED / PENDING_APPROVAL) and persist it.</li>
  *   <li>Emit POLICY_DECISION audit log.</li>
+ *   <li>If NEEDS_APPROVAL: create an ApprovalRequest, emit
+ *       APPROVAL_REQUESTED audit log.</li>
  *   <li>Mark the agent's lastUsedAt timestamp.</li>
  * </ol>
  *
  * <p>Action lifecycle events are fanned out to Kafka via
  * {@link AgentActionEventPublisher} (one event after persist, one after
- * decision). ApprovalRequest creation is intentionally deferred to the
- * next phase.
+ * decision). Approval tasks are published to RabbitMQ when an
+ * ApprovalRequest is created.
  */
 @Service
 public class ActionIngestionService {
+
+    /** Default approval window: 24 hours from request creation. */
+    private static final long APPROVAL_EXPIRY_HOURS = 24;
 
     private final AgentAuthenticationService agentAuthenticationService;
     private final AgentService agentService;
     private final ActionRequestRepository actionRequestRepository;
     private final PolicyDecisionRepository policyDecisionRepository;
+    private final ApprovalRequestRepository approvalRequestRepository;
     private final PolicyEvaluator policyEvaluator;
     private final AuditService auditService;
     private final AgentActionEventPublisher eventPublisher;
@@ -56,6 +67,7 @@ public class ActionIngestionService {
                                    AgentService agentService,
                                    ActionRequestRepository actionRequestRepository,
                                    PolicyDecisionRepository policyDecisionRepository,
+                                   ApprovalRequestRepository approvalRequestRepository,
                                    PolicyEvaluator policyEvaluator,
                                    AuditService auditService,
                                    AgentActionEventPublisher eventPublisher,
@@ -64,6 +76,7 @@ public class ActionIngestionService {
         this.agentService = agentService;
         this.actionRequestRepository = actionRequestRepository;
         this.policyDecisionRepository = policyDecisionRepository;
+        this.approvalRequestRepository = approvalRequestRepository;
         this.policyEvaluator = policyEvaluator;
         this.auditService = auditService;
         this.eventPublisher = eventPublisher;
@@ -138,6 +151,31 @@ public class ActionIngestionService {
 
         eventPublisher.publishDecided(saved, evaluation);
 
+        // ── Approval request (Phase 4) ────────────────────────────
+        UUID approvalId = null;
+        if (evaluation.outcome() == PolicyOutcome.NEEDS_APPROVAL) {
+            ApprovalRequest approval = new ApprovalRequest();
+            approval.setActionRequestId(saved.getId());
+            approval.setStatus(ApprovalStatus.PENDING);
+            approval.setExpiresAt(Instant.now().plus(APPROVAL_EXPIRY_HOURS, ChronoUnit.HOURS));
+            approval = approvalRequestRepository.save(approval);
+            approvalId = approval.getId();
+
+            auditService.record(
+                    AuditService.EVENT_APPROVAL_REQUESTED,
+                    AuditService.ACTOR_SYSTEM, null,
+                    AuditService.SUBJECT_APPROVAL_REQUEST, approval.getId(),
+                    "Approval requested for action: " + body.actionType().name(),
+                    AuditService.details(
+                            "actionRequestId", saved.getId(),
+                            "agentName", agent.getName(),
+                            "actionType", body.actionType().name(),
+                            "riskLevel", body.riskLevel().name(),
+                            "expiresAt", approval.getExpiresAt().toString()
+                    )
+            );
+        }
+
         agentService.markUsed(agent.getId());
 
         return new ActionDecisionResponse(
@@ -146,7 +184,8 @@ public class ActionIngestionService {
                 newStatus,
                 evaluation.matchedPolicyId(),
                 evaluation.matchedPolicyName(),
-                evaluation.reason());
+                evaluation.reason(),
+                approvalId);
     }
 
     private ActionRequestStatus mapStatus(PolicyOutcome outcome) {

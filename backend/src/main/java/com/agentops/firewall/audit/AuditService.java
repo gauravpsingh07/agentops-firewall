@@ -34,7 +34,8 @@ public class AuditService {
 
     public static final String SUBJECT_AGENT          = "AGENT";
     public static final String SUBJECT_ACTION_REQUEST = "ACTION_REQUEST";
-    public static final String SUBJECT_POLICY         = "POLICY";
+    public static final String SUBJECT_POLICY           = "POLICY";
+    public static final String SUBJECT_APPROVAL_REQUEST = "APPROVAL_REQUEST";
 
     public static final String EVENT_AGENT_CREATED      = "AGENT_CREATED";
     public static final String EVENT_AGENT_UPDATED      = "AGENT_UPDATED";
@@ -44,6 +45,12 @@ public class AuditService {
     public static final String EVENT_POLICY_CREATED     = "POLICY_CREATED";
     public static final String EVENT_POLICY_UPDATED     = "POLICY_UPDATED";
     public static final String EVENT_POLICY_DISABLED    = "POLICY_DISABLED";
+
+    public static final String EVENT_APPROVAL_REQUESTED = "APPROVAL_REQUESTED";
+    public static final String EVENT_APPROVAL_APPROVED  = "APPROVAL_APPROVED";
+    public static final String EVENT_APPROVAL_REJECTED  = "APPROVAL_REJECTED";
+    public static final String EVENT_APPROVAL_EXPIRED   = "APPROVAL_EXPIRED";
+    public static final String EVENT_ACTION_COMPLETED   = "ACTION_COMPLETED";
 
     private final AuditLogRepository repository;
     private final ObjectMapper objectMapper;
