@@ -1,0 +1,92 @@
+<section class="space-y-4 max-w-3xl">
+  <header>
+    <h2 class="text-2xl font-semibold text-white">Policy simulator</h2>
+    <p class="text-sm text-slate-400">
+      Submit a hypothetical action; the firewall evaluates it against the live policy set
+      and returns the decision without persisting anything.
+    </p>
+  </header>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" novalidate class="rounded-xl border border-slate-800 bg-agentops-card p-5 space-y-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase text-slate-400">Action type</label>
+        <select formControlName="actionType" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+          @for (t of actionTypes; track t) { <option [value]="t">{{ t }}</option> }
+        </select>
+      </div>
+      <div>
+        <label class="text-xs uppercase text-slate-400">Risk level</label>
+        <select formControlName="riskLevel" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+          @for (r of riskLevels; track r) { <option [value]="r">{{ r }}</option> }
+        </select>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <label class="text-xs uppercase text-slate-400">Resource</label>
+        <input
+          type="text"
+          formControlName="resource"
+          placeholder="e.g. external_email"
+          class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100"
+        />
+      </div>
+      <div>
+        <label class="text-xs uppercase text-slate-400">Agent (optional)</label>
+        <select formControlName="agentName" class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-2 py-1.5 text-sm text-slate-100">
+          <option value="">None</option>
+          @for (a of agentOptions(); track a.id) { <option [value]="a.name">{{ a.name }}</option> }
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label class="text-xs uppercase text-slate-400">Metadata (JSON object)</label>
+      <textarea
+        formControlName="metadata"
+        rows="6"
+        class="mt-1 w-full rounded-md bg-slate-900 border border-slate-700 px-3 py-2 text-sm font-mono text-slate-100"
+      ></textarea>
+      @if (metadataError()) {
+        <p class="mt-1 text-xs text-red-400">{{ metadataError() }}</p>
+      }
+    </div>
+
+    @if (errorMessage()) {
+      <div role="alert" class="rounded-md border border-red-700/40 bg-red-900/30 px-3 py-2 text-sm text-red-200">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <div class="flex justify-end">
+      <button
+        type="submit"
+        [disabled]="running()"
+        class="rounded-md bg-agentops-accent px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60 hover:bg-blue-500"
+      >
+        {{ running() ? 'Simulating…' : 'Simulate' }}
+      </button>
+    </div>
+  </form>
+
+  @if (result(); as r) {
+    <div class="rounded-xl border p-5 space-y-2 {{ decisionTone() }}">
+      <div class="flex items-center justify-between">
+        <span class="text-xs uppercase tracking-wide text-slate-300">Decision</span>
+        <span class="text-lg font-semibold">{{ r.decision }}</span>
+      </div>
+      <div class="text-sm">
+        <div><span class="text-slate-400">Matched policy:</span> {{ r.matchedPolicyName || '—' }}</div>
+        <div class="text-xs text-slate-400 break-all">{{ r.matchedPolicyId || '' }}</div>
+      </div>
+      <div class="text-sm">
+        <span class="text-slate-400">Reason:</span> {{ r.reason }}
+      </div>
+      <p class="text-[10px] uppercase tracking-wide text-slate-500">
+        Simulated — no audit log was written.
+      </p>
+    </div>
+  }
+</section>

@@ -50,9 +50,8 @@ export const appRoutes: Routes = [
       },
       {
         path: 'simulator',
-        data: { feature: 'Policy simulator' },
         loadComponent: () =>
-          import('./features/shared/coming-soon.component').then((m) => m.ComingSoonComponent)
+          import('./features/simulator/simulator.component').then((m) => m.SimulatorComponent)
       },
       {
         path: 'approvals',
