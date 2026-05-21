@@ -2,6 +2,8 @@ package com.agentops.firewall.messaging;
 
 import com.agentops.firewall.action.ActionRequest;
 import com.agentops.firewall.agent.Agent;
+import com.agentops.firewall.approval.ApprovalRequest;
+import com.agentops.firewall.messaging.events.ActionCompletedEvent;
 import com.agentops.firewall.messaging.events.ActionDecidedEvent;
 import com.agentops.firewall.messaging.events.ActionReceivedEvent;
 import com.agentops.firewall.policy.PolicyEvaluationResult;
@@ -79,6 +81,23 @@ public class KafkaAgentActionEventPublisher implements AgentActionEventPublisher
                 Instant.now()
         );
         publish(topics.getActionsDecided(), action.getId().toString(), event);
+    }
+
+    @Override
+    public void publishCompleted(ActionRequest action, ApprovalRequest approval, UUID reviewerUserId) {
+        ActionCompletedEvent event = new ActionCompletedEvent(
+                UUID.randomUUID().toString(),
+                ActionCompletedEvent.TYPE,
+                action.getId(),
+                approval.getId(),
+                action.getAgentId(),
+                action.getActionType(),
+                action.getRiskLevel(),
+                action.getStatus(),
+                reviewerUserId,
+                Instant.now()
+        );
+        publish(topics.getActionsCompleted(), action.getId().toString(), event);
     }
 
     private void publish(String topic, String key, Object payload) {
