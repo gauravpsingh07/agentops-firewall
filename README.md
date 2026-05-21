@@ -1,5 +1,10 @@
 # AgentOps Firewall
 
+[![CI](https://github.com/gauravpsingh07/agentops-firewall/actions/workflows/ci.yml/badge.svg)](https://github.com/gauravpsingh07/agentops-firewall/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Java](https://img.shields.io/badge/Java-21-007396.svg)](https://adoptium.net/)
+[![Angular](https://img.shields.io/badge/Angular-18-dd0031.svg)](https://angular.dev)
+
 > Policy, audit, and approval layer for AI agents.
 
 AgentOps Firewall mediates risky AI agent actions. Instead of letting an
