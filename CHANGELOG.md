@@ -6,6 +6,71 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.1] — 2026-05-22
+
+Patch release focused on local-development experience: hardens the
+Docker Compose stack against Docker Desktop image-extraction
+regressions, fixes a CORS gap that prevented the dashboard from
+reading a successful login response in a real browser, aligns the
+host-run backend's RabbitMQ defaults with the broker container, and
+adds a dedicated troubleshooting guide plus the long-promised
+dashboard screenshots.
+
+### Fixed
+
+- **Kafka container image.** Switched from `bitnami/kafka:3.7` (no
+  longer published) to `confluentinc/cp-kafka:7.7.1`.
+  `apache/kafka:3.9.0` was tried first and rejected because Docker
+  Desktop's containerd image store extracts its layers as 0-byte
+  files on some 4.6x builds (243/243 files empty, including the
+  Kafka JARs themselves). cp-kafka uses the same `KAFKA_*` env-var
+  convention so the broker config required no rename.
+- **Kafka networking for host-run clients.** Added a
+  `PLAINTEXT_HOST` listener on port 9092 advertising
+  `localhost:9092` alongside the existing internal listener on
+  `kafka:29092`. A backend launched on the host
+  (`./mvnw spring-boot:run`) can now reach the broker; the
+  compose-managed backend is pinned to the internal listener so
+  container-to-container traffic stays inside the Docker network.
+- **RabbitMQ auth from a host-run backend.** `application.yml`
+  defaults changed from Spring's stock `guest:guest` to the
+  `agentops:local_dev_only` pair the compose `rabbitmq` service
+  already provisions. RabbitMQ's built-in `guest` user only accepts
+  loopback connections, so the previous defaults made
+  `/actuator/health` report DOWN until a per-shell env override
+  was set.
+- **CORS for the dev frontend.** `SecurityConfig` had
+  `.cors(cors -> {})` wired into the filter chain but no
+  `CorsConfigurationSource` bean to back it, so successful login
+  responses came back without an `Access-Control-Allow-Origin`
+  header and browsers refused to expose the JWT to the Angular
+  app. A configurable bean
+  (`agentops.security.cors.allowed-origins`, defaulting to
+  `http://localhost:4200,http://localhost`) now emits the header
+  and unblocks the dashboard.
+
+### Added
+
+- **`docs/troubleshooting.md`** — companion to the README's
+  troubleshooting table. Eight entries covering issues caught
+  during bring-up: containerd image-store regression, Kafka
+  `appuser` lookup, host/container Kafka networking, opaque
+  `/actuator/health` DOWN, CORS, disk recovery, PowerShell `curl`
+  alias, and `wsl --unregister` cross-project blast radius.
+- **README Docker Desktop callout.** Prerequisites now names the
+  containerd image-store toggle so a first-time reader doesn't
+  have to discover the workaround the hard way, plus a pointer to
+  `docs/troubleshooting.md` for deeper diagnostics.
+- **`docs/screenshots/*.png`.** Committed the eight dashboard PNGs
+  the README's Demo section has been pointing at, captured via
+  the existing `npm run screenshots` Playwright script against
+  the full local stack (Postgres + Kafka + RabbitMQ + backend +
+  Angular dev server).
+
+[1.0.1]: https://example.com/agentops-firewall/releases/tag/v1.0.1
+
+---
+
 ## [1.0.0] — 2026-05-21
 
 First portfolio release. Complete local-first stack — backend, frontend,
