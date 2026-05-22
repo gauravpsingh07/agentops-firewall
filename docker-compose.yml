@@ -56,11 +56,24 @@ services:
       # KRaft mode — single-node dev broker, no Zookeeper.
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: "broker,controller"
-      KAFKA_LISTENERS: "PLAINTEXT://:9092,CONTROLLER://:9093"
-      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:9092"
+      # Two PLAINTEXT listeners so clients can reach Kafka from both
+      # sides of the Docker network boundary:
+      #   - PLAINTEXT (port 29092) is the internal listener; it
+      #     advertises `kafka:29092`, which only resolves inside the
+      #     compose network. Used by the `backend` service when run
+      #     under `docker compose up backend`.
+      #   - PLAINTEXT_HOST (port 9092) is the external listener; it
+      #     advertises `localhost:9092`, which is what a Spring Boot
+      #     app launched on the Windows host via `mvnw spring-boot:run`
+      #     can actually reach.
+      # Without this split, the host-running backend connects to the
+      # TCP port fine but then receives `kafka:9092` as the advertised
+      # address and fails to resolve it.
+      KAFKA_LISTENERS: "PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+      KAFKA_ADVERTISED_LISTENERS: "PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092"
       KAFKA_CONTROLLER_QUORUM_VOTERS: "1@kafka:9093"
       KAFKA_CONTROLLER_LISTENER_NAMES: "CONTROLLER"
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT"
       KAFKA_INTER_BROKER_LISTENER_NAME: "PLAINTEXT"
       # Required single-broker tunables: with one replica per topic the
       # internal __consumer_offsets / __transaction_state topics must
@@ -104,7 +117,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agentops}
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-agentops}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-local_dev_only}
-      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # Container-to-container Kafka traffic uses the internal listener
+      # (see KAFKA_LISTENERS / KAFKA_ADVERTISED_LISTENERS on the kafka
+      # service). The external 9092 listener is for host-run clients.
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_PORT: "5672"
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_DEFAULT_USER:-agentops}
