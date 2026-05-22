@@ -44,7 +44,7 @@ For screenshots of every dashboard page, see [`docs/screenshots/`](docs/screensh
 | Frontend    | Angular 18 (standalone), TypeScript, RxJS, Tailwind CSS       |
 | Backend     | Java 21, Spring Boot 3.3, Spring Security, REST               |
 | Persistence | PostgreSQL 16, Flyway migrations, Spring Data JPA             |
-| Streaming   | Apache Kafka (KRaft single-broker for local)                  |
+| Streaming   | Apache Kafka 3.7 in KRaft mode (via `confluentinc/cp-kafka`)  |
 | Work queue  | RabbitMQ                                                      |
 | DevOps      | Docker, Docker Compose, GitHub Actions                        |
 | Testing     | JUnit 5, Mockito, Spring Boot Test, Karma/Jasmine, Playwright |
@@ -59,7 +59,7 @@ AgentOpsFirewall/
 ├── backend/        # Spring Boot 3 service (Java 21)
 ├── frontend/       # Angular dashboard
 ├── infra/          # Terraform skeleton + architecture diagrams
-├── docs/           # Architecture, API, cloud, decisions
+├── docs/           # Architecture, API, cloud, decisions, troubleshooting, screenshots
 ├── .github/        # CI workflows
 ├── docker-compose.yml
 ├── CLAUDE.md       # Guardrails for AI-assisted development sessions
@@ -75,7 +75,10 @@ AgentOpsFirewall/
 - **JDK 21** (Eclipse Temurin recommended)
 - **Node 20+** and npm
 - **Docker** with Docker Compose v2
-- ~2 GB free disk for container images and Maven cache
+- ~10 GB free disk — Postgres + Kafka + RabbitMQ images plus Maven /
+  npm caches and Docker's WSL VM all add up; see
+  [`docs/troubleshooting.md#6`](docs/troubleshooting.md#6-out-of-disk-space--docker-desktop-wont-start-builds-fail-git-cant-write)
+  if you run low.
 
 > **Docker Desktop note.** Some 4.6x builds of Docker Desktop have a
 > regression in the containerd image store that extracts certain
