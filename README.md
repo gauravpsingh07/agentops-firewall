@@ -75,6 +75,13 @@ AgentOpsFirewall/
 - **Docker** with Docker Compose v2
 - ~2 GB free disk for container images and Maven cache
 
+> **Docker Desktop note.** Some 4.6x builds of Docker Desktop have a
+> regression in the containerd image store that extracts certain
+> image layers as zero-byte files (`exec format error` on container
+> start). If you hit it, **Settings → General → uncheck "Use
+> containerd for pulling and storing images" → Apply & Restart**.
+> See [`docs/troubleshooting.md`](docs/troubleshooting.md#1-image-layers-extract-as-zero-byte-files-on-docker-desktop) for the full diagnostic.
+
 ### One-time setup
 
 ```bash
@@ -165,6 +172,10 @@ to keep PR feedback fast.
 | `mvn` not found | Use the wrapper: `./mvnw` (or `mvnw.cmd` on Windows). |
 | Login returns 500 | JWT signing key not set. Confirm `JWT_SECRET` in `backend/.env` or use the local default. |
 | Karma tests can't find Chrome | Install Chrome stable, or set `CHROME_BIN` to your Chrome path. |
+
+For deeper diagnostics — Docker image extraction, Kafka networking
+across the host / container boundary, CORS misconfiguration, disk
+recovery — see [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ---
 
