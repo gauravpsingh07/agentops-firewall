@@ -20,11 +20,13 @@ it through a human reviewer, and produces a complete audit trail.
 
 - **Backend** (Java 21, Spring Boot 3.3) — REST API, JWT + agent-key auth,
   policy engine, approval workflow, audit log, Kafka + RabbitMQ
-  publishers, 121 Surefire + Failsafe tests on H2.
+  publishers, 128 Surefire + Failsafe tests on H2 (including a
+  dedicated CORS regression suite).
 - **Frontend** (Angular 18 standalone) — login, role-aware dashboard
   shell, action feed, policy management, simulator, approval inbox,
-  audit-log viewer, analytics with hand-rolled bar charts. Karma unit
-  tests + Playwright smoke spec.
+  audit-log viewer, analytics with hand-rolled bar charts. 52 Karma
+  unit specs across guards, interceptors, services, and HTTP data
+  layer; Playwright e2e suite (smoke, approval-flow, screenshots).
 - **Infra** — Docker Compose for Postgres / Kafka / RabbitMQ, multi-stage
   Dockerfiles for backend + frontend, GitHub Actions CI, Terraform-ready
   AWS skeleton (docs only).
@@ -203,6 +205,7 @@ capture guidance.
 - [`docs/api.md`](docs/api.md) — full REST endpoint reference with curl recipes
 - [`docs/cloud-architecture.md`](docs/cloud-architecture.md) — local → AWS / Azure mapping, free-local-dev guarantee, cost notes
 - [`docs/decisions.md`](docs/decisions.md) — engineering decisions (Kafka vs RabbitMQ, Flyway vs Liquibase, Playwright vs Cypress, etc.)
+- [`docs/troubleshooting.md`](docs/troubleshooting.md) — diagnostic guide for the issues most likely to surface during local bring-up (Docker Desktop image extraction, Kafka networking, CORS, disk recovery)
 - [`infra/terraform/aws/README.md`](infra/terraform/aws/README.md) — Terraform blueprint (documentation only)
 
 ---
