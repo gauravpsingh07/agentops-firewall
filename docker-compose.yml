@@ -31,12 +31,26 @@ services:
     restart: unless-stopped
 
   kafka:
-    # Switched from bitnami/kafka to apache/kafka: Bitnami stopped
-    # publishing community Kafka images on Docker Hub in August 2025,
-    # so the previous `bitnami/kafka:3.7` tag is no longer pullable.
-    # apache/kafka is the official upstream image; KRaft mode is built
-    # in and the env-var prefix is KAFKA_ (no KAFKA_CFG_).
-    image: apache/kafka:3.9.0
+    # Confluent's cp-kafka is the most widely deployed Kafka container
+    # image — used in production at thousands of organizations, so its
+    # layer manifests are well exercised on Docker Desktop / WSL2.
+    #
+    # We tried bitnami/kafka:3.7 first (the de-facto community image
+    # for years), but Bitnami stopped publishing community Kafka
+    # images on Docker Hub in August 2025, so that tag is no longer
+    # pullable. We then tried apache/kafka:3.9.0 (the official
+    # upstream), but on Docker Desktop 4.68 + WSL2 every file in
+    # /etc/kafka and /opt/kafka extracted as 0 bytes (243/243 files
+    # empty, including the Kafka JARs themselves), producing
+    # `exec /__cacert_entrypoint.sh: exec format error` on start.
+    # Pulling cleanly into a fresh WSL VM did not help, so the bug
+    # is in how Docker Desktop handles that specific image's layer
+    # manifest, not in our environment.
+    #
+    # cp-kafka 7.7.x corresponds to Apache Kafka 3.7.x and uses the
+    # same KAFKA_* env-var convention as apache/kafka — no rename
+    # of the broker config below was needed.
+    image: confluentinc/cp-kafka:7.7.1
     container_name: agentops-kafka
     environment:
       # KRaft mode — single-node dev broker, no Zookeeper.
@@ -60,7 +74,7 @@ services:
     ports:
       - "9092:9092"
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 >/dev/null 2>&1"]
       interval: 15s
       timeout: 10s
       retries: 8
