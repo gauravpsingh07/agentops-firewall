@@ -26,25 +26,21 @@ Capture guidance:
 | `07-approvals.png` | Approval inbox — at least one PENDING card with the note input + approve/reject buttons. |
 | `08-audit-log.png` | Audit log — expanded row showing pretty-printed `detailsJson`. |
 
-## Capture script (optional)
+## Capture script
 
-If you want to automate this with Playwright, see
-`frontend/e2e/screenshots.spec.ts` (not committed — write it locally if
-needed). The skeleton is:
+The capture is automated by `frontend/e2e/screenshots.spec.ts`, run via:
 
-```ts
-import { test } from '@playwright/test';
-
-test('capture dashboard pages', async ({ page }) => {
-  await page.goto('/login');
-  await page.locator('input#username').fill('admin');
-  await page.locator('input#password').fill('admin123');
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.waitForURL(/\/dashboard/);
-  await page.screenshot({ path: 'docs/screenshots/02-dashboard.png', fullPage: true });
-  // ...repeat for each section
-});
+```bash
+cd frontend
+npm run screenshots
 ```
 
-The screenshots themselves are not committed yet; this folder exists so
-the README's Demo section has a stable target.
+The script signs in as **admin**, drives each route, and writes the
+eight PNGs above directly into this folder. Prerequisites: the full
+local stack must be running (`docker compose up -d postgres kafka
+rabbitmq`, then the backend on 8080 and the Angular dev server on
+4200) — see the root README's "Local development" section for the
+end-to-end procedure.
+
+Re-run the script after any UI change so the screenshots committed
+to this folder stay in sync with the current dashboard.
