@@ -183,19 +183,23 @@ recovery — see [`docs/troubleshooting.md`](docs/troubleshooting.md).
 
 ## Demo
 
+Eight full-page captures from the live local stack — backend, frontend,
+Postgres, Kafka, and RabbitMQ all running. Click any thumbnail to view
+full size.
+
 | Page | Preview |
 |---|---|
-| Login | `docs/screenshots/01-login.png` |
-| Dashboard overview | `docs/screenshots/02-dashboard.png` |
-| Action feed | `docs/screenshots/03-action-feed.png` |
-| Policies | `docs/screenshots/04-policies-list.png` |
-| Policy editor | `docs/screenshots/05-policies-edit.png` |
-| Simulator | `docs/screenshots/06-simulator.png` |
-| Approval inbox | `docs/screenshots/07-approvals.png` |
-| Audit log | `docs/screenshots/08-audit-log.png` |
+| Login | <a href="docs/screenshots/01-login.png"><img src="docs/screenshots/01-login.png" alt="Login page with demo-credentials hint" width="600"></a> |
+| Dashboard overview | <a href="docs/screenshots/02-dashboard.png"><img src="docs/screenshots/02-dashboard.png" alt="Dashboard landing: KPI cards, risk and decision charts, recent activity" width="600"></a> |
+| Action feed | <a href="docs/screenshots/03-action-feed.png"><img src="docs/screenshots/03-action-feed.png" alt="Action feed with filters and mixed ALLOWED / DENIED / PENDING rows" width="600"></a> |
+| Policies | <a href="docs/screenshots/04-policies-list.png"><img src="docs/screenshots/04-policies-list.png" alt="Policy list sorted by priority, with enable/disable toggles" width="600"></a> |
+| Policy editor | <a href="docs/screenshots/05-policies-edit.png"><img src="docs/screenshots/05-policies-edit.png" alt="Policy editor with the conditions FormArray" width="600"></a> |
+| Simulator | <a href="docs/screenshots/06-simulator.png"><img src="docs/screenshots/06-simulator.png" alt="Policy simulator showing a NEEDS_APPROVAL result" width="600"></a> |
+| Approval inbox | <a href="docs/screenshots/07-approvals.png"><img src="docs/screenshots/07-approvals.png" alt="Approval inbox with pending cards and approve/reject buttons" width="600"></a> |
+| Audit log | <a href="docs/screenshots/08-audit-log.png"><img src="docs/screenshots/08-audit-log.png" alt="Audit log with an expanded row showing pretty-printed detailsJson" width="600"></a> |
 
 See [`docs/screenshots/README.md`](docs/screenshots/README.md) for the
-capture guidance.
+capture guidance and the `npm run screenshots` regeneration steps.
 
 ---
 
