@@ -31,7 +31,7 @@ jobs:
         working-directory: backend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -62,10 +62,10 @@ jobs:
         working-directory: frontend
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Node 20
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "20"
           cache: npm
@@ -73,7 +73,7 @@ jobs:
 
       - name: Set up headless Chrome (for Karma)
         id: setup-chrome
-        uses: browser-actions/setup-chrome@v1
+        uses: browser-actions/setup-chrome@v2
         with:
           chrome-version: stable
 
