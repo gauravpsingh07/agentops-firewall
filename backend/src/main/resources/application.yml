@@ -52,8 +52,13 @@ spring:
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
     port: ${SPRING_RABBITMQ_PORT:5672}
-    username: ${SPRING_RABBITMQ_USERNAME:guest}
-    password: ${SPRING_RABBITMQ_PASSWORD:guest}
+    # Defaults match the docker-compose `rabbitmq` service env vars so
+    # a host-run backend (`mvnw spring-boot:run`) connects without
+    # per-shell env overrides. RabbitMQ's built-in `guest` account is
+    # restricted to loopback connections, so the previous `guest:guest`
+    # defaults only worked from inside the broker container itself.
+    username: ${SPRING_RABBITMQ_USERNAME:agentops}
+    password: ${SPRING_RABBITMQ_PASSWORD:local_dev_only}
 
 server:
   port: 8080
