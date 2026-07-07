@@ -130,14 +130,14 @@ public class AgentService {
     }
 
     /**
-     * Update lastUsedAt after a successful action submission.
+     * Update lastUsedAt after a successful action submission. Uses a
+     * targeted UPDATE rather than a read-modify-write so the high-frequency
+     * "agent just submitted an action" write does not contend on the
+     * optimistic-lock version column under concurrent submissions.
      */
     @Transactional
     public void markUsed(UUID agentId) {
-        agentRepository.findById(agentId).ifPresent(agent -> {
-            agent.setLastUsedAt(Instant.now());
-            agentRepository.save(agent);
-        });
+        agentRepository.markUsed(agentId, Instant.now());
     }
 
     private Agent loadById(UUID id) {
