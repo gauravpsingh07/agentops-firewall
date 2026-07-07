@@ -12,10 +12,10 @@ import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.RiskLevel;
 import com.agentops.firewall.common.error.ConflictException;
 import com.agentops.firewall.common.error.NotFoundException;
-import com.agentops.firewall.messaging.AgentActionEventPublisher;
-import com.agentops.firewall.messaging.ApprovalTaskPublisher;
+import com.agentops.firewall.messaging.ActionCompletedNotification;
 import com.agentops.firewall.user.User;
 import com.agentops.firewall.user.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -41,23 +41,20 @@ public class ApprovalService {
     private final AgentRepository agentRepository;
     private final UserRepository userRepository;
     private final AuditService auditService;
-    private final AgentActionEventPublisher eventPublisher;
-    private final ApprovalTaskPublisher approvalTaskPublisher;
+    private final ApplicationEventPublisher events;
 
     public ApprovalService(ApprovalRequestRepository approvalRequestRepository,
                            ActionRequestRepository actionRequestRepository,
                            AgentRepository agentRepository,
                            UserRepository userRepository,
                            AuditService auditService,
-                           AgentActionEventPublisher eventPublisher,
-                           ApprovalTaskPublisher approvalTaskPublisher) {
+                           ApplicationEventPublisher events) {
         this.approvalRequestRepository = approvalRequestRepository;
         this.actionRequestRepository = actionRequestRepository;
         this.agentRepository = agentRepository;
         this.userRepository = userRepository;
         this.auditService = auditService;
-        this.eventPublisher = eventPublisher;
-        this.approvalTaskPublisher = approvalTaskPublisher;
+        this.events = events;
     }
 
     @Transactional(readOnly = true)
@@ -114,8 +111,7 @@ public class ApprovalService {
                 )
         );
 
-        eventPublisher.publishCompleted(action, approval, reviewerUserId);
-        approvalTaskPublisher.publishApprovalCompleted(approval, action, "APPROVED");
+        events.publishEvent(new ActionCompletedNotification(action, approval, reviewerUserId, "APPROVED"));
 
         return toResponse(approval);
     }
@@ -152,8 +148,7 @@ public class ApprovalService {
                 )
         );
 
-        eventPublisher.publishCompleted(action, approval, reviewerUserId);
-        approvalTaskPublisher.publishApprovalCompleted(approval, action, "REJECTED");
+        events.publishEvent(new ActionCompletedNotification(action, approval, reviewerUserId, "REJECTED"));
 
         return toResponse(approval);
     }

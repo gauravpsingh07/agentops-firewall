@@ -11,13 +11,15 @@ import com.agentops.firewall.audit.AuditService;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.PolicyOutcome;
-import com.agentops.firewall.messaging.AgentActionEventPublisher;
-import com.agentops.firewall.messaging.ApprovalTaskPublisher;
+import com.agentops.firewall.messaging.ActionDecidedNotification;
+import com.agentops.firewall.messaging.ActionReceivedNotification;
+import com.agentops.firewall.messaging.ApprovalRequestedNotification;
 import com.agentops.firewall.policy.PolicyEvaluationContext;
 import com.agentops.firewall.policy.PolicyEvaluationResult;
 import com.agentops.firewall.policy.PolicyEvaluator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,8 +63,7 @@ public class ActionIngestionService {
     private final ApprovalRequestRepository approvalRequestRepository;
     private final PolicyEvaluator policyEvaluator;
     private final AuditService auditService;
-    private final AgentActionEventPublisher eventPublisher;
-    private final ApprovalTaskPublisher approvalTaskPublisher;
+    private final ApplicationEventPublisher events;
     private final ObjectMapper objectMapper;
 
     public ActionIngestionService(AgentAuthenticationService agentAuthenticationService,
@@ -72,8 +73,7 @@ public class ActionIngestionService {
                                    ApprovalRequestRepository approvalRequestRepository,
                                    PolicyEvaluator policyEvaluator,
                                    AuditService auditService,
-                                   AgentActionEventPublisher eventPublisher,
-                                   ApprovalTaskPublisher approvalTaskPublisher,
+                                   ApplicationEventPublisher events,
                                    ObjectMapper objectMapper) {
         this.agentAuthenticationService = agentAuthenticationService;
         this.agentService = agentService;
@@ -82,8 +82,7 @@ public class ActionIngestionService {
         this.approvalRequestRepository = approvalRequestRepository;
         this.policyEvaluator = policyEvaluator;
         this.auditService = auditService;
-        this.eventPublisher = eventPublisher;
-        this.approvalTaskPublisher = approvalTaskPublisher;
+        this.events = events;
         this.objectMapper = objectMapper;
     }
 
@@ -114,10 +113,11 @@ public class ActionIngestionService {
                 )
         );
 
-        // Fan out the received-event to Kafka. Publishing failures are
-        // swallowed inside the publisher so synchronous callers never
-        // block on broker availability.
-        eventPublisher.publishReceived(saved, agent);
+        // Fan out the received-event to Kafka. The actual send is deferred
+        // until this transaction commits (TransactionalMessagingForwarder),
+        // so a later rollback never emits a phantom event, and publishing
+        // failures are swallowed so callers never block on the broker.
+        events.publishEvent(new ActionReceivedNotification(saved, agent));
 
         PolicyEvaluationContext ctx = new PolicyEvaluationContext(
                 body.actionType(), body.resource(), body.riskLevel(), metadata, agent);
@@ -153,7 +153,7 @@ public class ActionIngestionService {
                 )
         );
 
-        eventPublisher.publishDecided(saved, evaluation);
+        events.publishEvent(new ActionDecidedNotification(saved, evaluation));
 
         // ── Approval request (Phase 4) ────────────────────────────
         UUID approvalId = null;
@@ -179,7 +179,7 @@ public class ActionIngestionService {
                     )
             );
 
-            approvalTaskPublisher.publishApprovalRequested(approval, saved, agent);
+            events.publishEvent(new ApprovalRequestedNotification(approval, saved, agent));
         }
 
         agentService.markUsed(agent.getId());
