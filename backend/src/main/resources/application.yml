@@ -48,6 +48,11 @@ spring:
         max.block.ms: 5000
         delivery.timeout.ms: 8000
         request.timeout.ms: 5000
+    consumer:
+      group-id: ${AGENTOPS_KAFKA_CONSUMER_GROUP:agentops-firewall-metrics}
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
@@ -77,6 +82,12 @@ management:
 
 agentops:
   messaging:
+    # Broker consumers (Kafka action stream + RabbitMQ approval queue) that
+    # project events into the in-memory live-metrics feed. Disable to run the
+    # backend as a pure producer.
+    consumers:
+      enabled: ${AGENTOPS_MESSAGING_CONSUMERS_ENABLED:true}
+      group-id: ${AGENTOPS_KAFKA_CONSUMER_GROUP:agentops-firewall-metrics}
     kafka:
       topic:
         actions-received:  ${AGENTOPS_KAFKA_TOPIC_ACTIONS_RECEIVED:agent.actions.received}

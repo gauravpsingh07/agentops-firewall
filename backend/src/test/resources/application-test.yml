@@ -43,6 +43,10 @@ spring:
 
 agentops:
   messaging:
+    # No broker runs in tests: keep the consumers off so no Kafka/Rabbit
+    # listener container is started.
+    consumers:
+      enabled: false
     kafka:
       topic:
         actions-received: test.agent.actions.received
