@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
@@ -37,6 +38,9 @@ public class ConditionEvaluator {
 
     private static final Logger log = LoggerFactory.getLogger(ConditionEvaluator.class);
     private static final TypeReference<List<String>> LIST_OF_STRING = new TypeReference<>() {};
+
+    /** Cache of compiled MATCHES-operator regexes keyed by the pattern string. */
+    private final Map<String, Pattern> patternCache = new ConcurrentHashMap<>();
 
     private final ObjectMapper objectMapper;
 
@@ -130,7 +134,8 @@ public class ConditionEvaluator {
     private boolean regexMatches(Object actual, String configured) {
         if (actual == null || configured == null) return false;
         try {
-            return Pattern.compile(configured).matcher(Objects.toString(actual)).matches();
+            Pattern pattern = patternCache.computeIfAbsent(configured, Pattern::compile);
+            return pattern.matcher(Objects.toString(actual)).matches();
         } catch (PatternSyntaxException ex) {
             log.warn("Invalid regex in policy condition value: {}", configured);
             return false;

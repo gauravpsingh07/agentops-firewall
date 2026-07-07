@@ -8,9 +8,14 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 /**
  * Pure-logic policy evaluator. Loads the enabled policies in
@@ -47,6 +52,15 @@ public class PolicyEvaluator {
      */
     public static final PolicyOutcome DEFAULT_OUTCOME = PolicyOutcome.NEEDS_APPROVAL;
 
+    /**
+     * Cache of compiled resource-pattern regexes keyed by the raw pattern
+     * string. Policies are evaluated on every action-ingestion request, so
+     * recompiling the same pattern each time is wasteful. The cache is
+     * unbounded but bounded in practice by the number of distinct patterns
+     * across the policy set.
+     */
+    private final Map<String, Pattern> patternCache = new ConcurrentHashMap<>();
+
     private final PolicyRepository policyRepository;
     private final PolicyConditionRepository conditionRepository;
     private final ConditionEvaluator conditionEvaluator;
@@ -62,8 +76,20 @@ public class PolicyEvaluator {
     @Transactional(readOnly = true)
     public PolicyEvaluationResult evaluate(PolicyEvaluationContext ctx) {
         List<Policy> ordered = policyRepository.findByEnabledTrueOrderByPriorityDescNameAsc();
+
+        // Batch-load every condition for the enabled policy set in one query
+        // and group by policy id, rather than firing a query per policy.
+        Map<UUID, List<PolicyCondition>> conditionsByPolicy = ordered.isEmpty()
+                ? Map.of()
+                : conditionRepository.findByPolicyIdIn(
+                        ordered.stream().map(Policy::getId).toList())
+                    .stream()
+                    .collect(Collectors.groupingBy(PolicyCondition::getPolicyId));
+
         for (Policy policy : ordered) {
-            if (matches(policy, ctx)) {
+            List<PolicyCondition> conditions =
+                    conditionsByPolicy.getOrDefault(policy.getId(), Collections.emptyList());
+            if (matches(policy, ctx, conditions)) {
                 String reason = describe(policy, ctx);
                 log.debug("Policy matched: name={} priority={} effect={}",
                         policy.getName(), policy.getPriority(), policy.getEffect());
@@ -77,32 +103,42 @@ public class PolicyEvaluator {
                 "No matching policy. Default outcome is " + DEFAULT_OUTCOME + " (safe default).");
     }
 
-    private boolean matches(Policy policy, PolicyEvaluationContext ctx) {
+    private boolean matches(Policy policy, PolicyEvaluationContext ctx, List<PolicyCondition> conditions) {
         if (policy.getActionType() != null && policy.getActionType() != ctx.actionType()) {
             return false;
         }
         if (policy.getResourcePattern() != null && !policy.getResourcePattern().isBlank()) {
             String resource = ctx.resource() == null ? "" : ctx.resource();
-            try {
-                if (!Pattern.compile(policy.getResourcePattern()).matcher(resource).matches()) {
-                    return false;
-                }
-            } catch (PatternSyntaxException ex) {
-                log.warn("Policy {} has an invalid resource pattern: {}",
-                        policy.getName(), ex.getDescription());
+            Pattern compiled = compilePattern(policy);
+            if (compiled == null || !compiled.matcher(resource).matches()) {
                 return false;
             }
         }
         if (policy.getMinRiskLevel() != null && !atLeast(ctx.riskLevel(), policy.getMinRiskLevel())) {
             return false;
         }
-        List<PolicyCondition> conditions = conditionRepository.findByPolicyId(policy.getId());
         for (PolicyCondition condition : conditions) {
             if (!conditionEvaluator.matches(condition, ctx)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * Return the compiled resource pattern for a policy, caching the result.
+     * An invalid pattern is logged once and yields {@code null} so the
+     * policy is treated as non-matching (a policy that can never match is
+     * safer than a broken evaluator).
+     */
+    private Pattern compilePattern(Policy policy) {
+        try {
+            return patternCache.computeIfAbsent(policy.getResourcePattern(), Pattern::compile);
+        } catch (PatternSyntaxException ex) {
+            log.warn("Policy {} has an invalid resource pattern: {}",
+                    policy.getName(), ex.getDescription());
+            return null;
+        }
     }
 
     private boolean atLeast(RiskLevel actual, RiskLevel minimum) {
