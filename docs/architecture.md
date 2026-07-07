@@ -96,9 +96,39 @@ backend ──► NEEDS_APPROVAL
                 ├── ApprovalRequest update (APPROVED|REJECTED)
                 ├── ActionRequest update (APPROVED|REJECTED)
                 ├── AuditService.recordDecision
-                ├── KafkaAgentActionEventPublisher ──► agent.actions.completed
-                └── RabbitApprovalTaskPublisher    ──► approval notifications (optional)
+                └── ActionCompletedNotification ──► (after commit) Kafka + RabbitMQ
 ```
+
+Unattended approvals do not linger: a `@Scheduled` `ApprovalExpiryService`
+moves any `PENDING` request past its `expiresAt` to `EXPIRED`, fails the
+action closed (`DENIED`), and writes an `APPROVAL_EXPIRED` audit event. Once
+an action is `ALLOWED` or `APPROVED`, the agent reports execution via
+`POST /api/agent-actions/{id}/complete`, moving it to `COMPLETED`/`FAILED`.
+
+---
+
+## Messaging, consumers & the live stream
+
+Publishing is **transaction-safe**: services emit internal domain events and
+a `TransactionalMessagingForwarder` relays them to Kafka/RabbitMQ under
+`@TransactionalEventListener(AFTER_COMMIT)`, so a rollback never emits a
+phantom broker event.
+
+The broker side is no longer write-only. A `@KafkaListener` (action stream)
+and a `@RabbitListener` (approval queue) project events into an in-memory
+`LiveMetricsService`. `GET /api/stream` exposes that projection as
+Server-Sent Events — an initial `snapshot` then per-event `activity` frames —
+which the Angular approval inbox consumes to update live.
+
+```
+Kafka topics ──► AgentActionEventConsumer ─┐
+                                           ├─► LiveMetricsService ──► GET /api/stream (SSE) ──► dashboard
+RabbitMQ queue ► ApprovalTaskConsumer ─────┘
+```
+
+Consumers are gated by `agentops.messaging.consumers.enabled` (off in tests).
+Login and agent ingestion are throttled by a fixed-window `RateLimitFilter`
+ahead of the security chain (`429` + `Retry-After`).
 
 ---
 

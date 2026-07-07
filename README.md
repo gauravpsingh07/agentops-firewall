@@ -19,14 +19,17 @@ it through a human reviewer, and produces a complete audit trail.
 ## What's included
 
 - **Backend** (Java 21, Spring Boot 3.3) — REST API, JWT + agent-key auth,
-  policy engine, approval workflow, audit log, Kafka + RabbitMQ
-  publishers, 128 Surefire + Failsafe tests on H2 (including a
-  dedicated CORS regression suite).
+  policy engine, approval workflow with a scheduled expiry sweeper, agent
+  action-completion callback, append-only audit log, Kafka + RabbitMQ
+  publishers **and** consumers (after-commit fan-out), a live SSE activity
+  feed, and fixed-window rate limiting. 147 Surefire + Failsafe tests on H2
+  (including CORS and rate-limit regression suites).
 - **Frontend** (Angular 18 standalone) — login, role-aware dashboard
-  shell, action feed, policy management, simulator, approval inbox,
-  audit-log viewer, analytics with hand-rolled bar charts. 52 Karma
-  unit specs across guards, interceptors, services, and HTTP data
-  layer; Playwright e2e suite (smoke, approval-flow, screenshots).
+  shell, action feed, policy management, simulator, approval inbox with
+  live SSE updates, audit-log viewer, analytics with hand-rolled bar
+  charts. 57 Karma unit specs across guards, interceptors, services, the
+  HTTP data layer, and the event-stream client; Playwright e2e suite
+  (smoke, approval-flow, screenshots).
 - **Infra** — Docker Compose for Postgres / Kafka / RabbitMQ, multi-stage
   Dockerfiles for backend + frontend, GitHub Actions CI, Terraform-ready
   AWS skeleton (docs only).
