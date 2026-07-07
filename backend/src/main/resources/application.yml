@@ -86,6 +86,12 @@ agentops:
       queue:
         approval-requests:      ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_REQUESTS:approval.requests}
         approval-notifications: ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_NOTIFICATIONS:approval.notifications}
+  approvals:
+    expiry:
+      # Background sweep that expires PENDING approvals past their deadline.
+      # Interval and initial delay are in milliseconds.
+      check-interval-ms: ${AGENTOPS_APPROVAL_EXPIRY_INTERVAL_MS:60000}
+      initial-delay-ms: ${AGENTOPS_APPROVAL_EXPIRY_INITIAL_DELAY_MS:60000}
   security:
     jwt:
       # Placeholder default — replace via JWT_SECRET env variable. The default
