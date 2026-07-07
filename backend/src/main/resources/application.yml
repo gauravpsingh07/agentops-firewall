@@ -100,6 +100,17 @@ agentops:
       secret: ${JWT_SECRET:agentops_local_dev_only_placeholder_jwt_secret_change_me_please_thirtytwo_plus}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
       issuer: ${JWT_ISSUER:agentops-firewall}
+    rate-limit:
+      # Fixed-window throttling shed ahead of the security chain. Capacities
+      # are per window in seconds, keyed by client IP (login) / agent key
+      # (ingestion).
+      enabled: ${AGENTOPS_RATE_LIMIT_ENABLED:true}
+      login:
+        capacity: ${AGENTOPS_RATE_LIMIT_LOGIN_CAPACITY:10}
+        window-seconds: ${AGENTOPS_RATE_LIMIT_LOGIN_WINDOW:60}
+      ingestion:
+        capacity: ${AGENTOPS_RATE_LIMIT_INGESTION_CAPACITY:60}
+        window-seconds: ${AGENTOPS_RATE_LIMIT_INGESTION_WINDOW:60}
 
 logging:
   level:
