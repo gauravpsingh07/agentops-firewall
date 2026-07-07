@@ -94,7 +94,9 @@ public class KafkaAgentActionEventPublisher implements AgentActionEventPublisher
                 UUID.randomUUID().toString(),
                 ActionCompletedEvent.TYPE,
                 action.getId(),
-                approval.getId(),
+                // Agent-reported completions (ALLOWED actions the agent ran
+                // directly) have no approval, so approvalRequestId is null.
+                approval == null ? null : approval.getId(),
                 action.getAgentId(),
                 action.getActionType(),
                 action.getRiskLevel(),

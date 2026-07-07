@@ -1,6 +1,8 @@
 package com.agentops.firewall.action;
 
+import com.agentops.firewall.action.dto.ActionCompletionResponse;
 import com.agentops.firewall.action.dto.ActionDecisionResponse;
+import com.agentops.firewall.action.dto.CompleteActionRequest;
 import com.agentops.firewall.action.dto.SubmitActionRequest;
 import com.agentops.firewall.agent.Agent;
 import com.agentops.firewall.agent.AgentAuthenticationService;
@@ -11,6 +13,9 @@ import com.agentops.firewall.audit.AuditService;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.ApprovalStatus;
 import com.agentops.firewall.common.domain.enums.PolicyOutcome;
+import com.agentops.firewall.common.error.ConflictException;
+import com.agentops.firewall.common.error.NotFoundException;
+import com.agentops.firewall.messaging.ActionCompletedNotification;
 import com.agentops.firewall.messaging.ActionDecidedNotification;
 import com.agentops.firewall.messaging.ActionReceivedNotification;
 import com.agentops.firewall.messaging.ApprovalRequestedNotification;
@@ -192,6 +197,53 @@ public class ActionIngestionService {
                 evaluation.matchedPolicyName(),
                 evaluation.reason(),
                 approvalId);
+    }
+
+    /**
+     * Record the execution outcome the agent reports after running an action
+     * the firewall cleared. Only the action's own agent (authenticated by
+     * X-Agent-Key) may complete it, and only from a cleared state
+     * ({@code ALLOWED} or {@code APPROVED}); anything else is a 409.
+     */
+    @Transactional
+    public ActionCompletionResponse complete(UUID actionId, CompleteActionRequest body, String rawAgentKey) {
+        ActionRequest action = actionRequestRepository.findById(actionId)
+                .orElseThrow(() -> new NotFoundException("Action request not found: " + actionId));
+
+        // Authenticate against the action's own agent, so only that agent's
+        // key can close it out.
+        Agent agent = agentAuthenticationService.authenticate(action.getAgentId(), rawAgentKey);
+
+        if (action.getStatus() != ActionRequestStatus.ALLOWED
+                && action.getStatus() != ActionRequestStatus.APPROVED) {
+            throw new ConflictException("Action " + actionId + " is not in a completable state (current: "
+                    + action.getStatus().name() + "). Only ALLOWED or APPROVED actions can be completed.");
+        }
+
+        ActionRequestStatus finalStatus = Boolean.TRUE.equals(body.success())
+                ? ActionRequestStatus.COMPLETED
+                : ActionRequestStatus.FAILED;
+        action.setStatus(finalStatus);
+        actionRequestRepository.save(action);
+
+        auditService.record(
+                AuditService.EVENT_ACTION_COMPLETED,
+                AuditService.ACTOR_AGENT, agent.getId(),
+                AuditService.SUBJECT_ACTION_REQUEST, action.getId(),
+                "Action reported " + finalStatus.name() + " by agent " + agent.getName() + ".",
+                AuditService.details(
+                        "finalStatus", finalStatus.name(),
+                        "agentName", agent.getName(),
+                        "detail", body.detail()
+                )
+        );
+
+        // Fan out the completion (no approval / reviewer for a self-report).
+        events.publishEvent(new ActionCompletedNotification(action, null, null, finalStatus.name()));
+
+        agentService.markUsed(agent.getId());
+
+        return new ActionCompletionResponse(action.getId(), finalStatus);
     }
 
     private ActionRequestStatus mapStatus(PolicyOutcome outcome) {

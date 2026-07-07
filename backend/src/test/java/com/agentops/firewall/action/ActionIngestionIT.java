@@ -287,6 +287,97 @@ class ActionIngestionIT {
                 .andExpect(jsonPath("$.fieldErrors").isArray());
     }
 
+    // ── Completion callback (POST /{id}/complete) ─────────────────────
+
+    @Test
+    @DisplayName("agent completes an ALLOWED action -> status COMPLETED, audit written")
+    void completeAllowedActionSucceeds() throws Exception {
+        UUID actionId = submitAllowedAction();
+
+        mockMvc.perform(post("/api/agent-actions/" + actionId + "/complete")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":true,\"detail\":\"sent 1 email\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        ActionRequest action = actionRequestRepository.findById(actionId).orElseThrow();
+        assertThat(action.getStatus()).isEqualTo(ActionRequestStatus.COMPLETED);
+        assertThat(auditLogRepository.findAll())
+                .anyMatch(l -> "ACTION_COMPLETED".equals(l.getEventType()));
+    }
+
+    @Test
+    @DisplayName("success=false marks the action FAILED")
+    void completeWithFailureMarksFailed() throws Exception {
+        UUID actionId = submitAllowedAction();
+
+        mockMvc.perform(post("/api/agent-actions/" + actionId + "/complete")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":false,\"detail\":\"smtp timeout\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"));
+
+        assertThat(actionRequestRepository.findById(actionId).orElseThrow().getStatus())
+                .isEqualTo(ActionRequestStatus.FAILED);
+    }
+
+    @Test
+    @DisplayName("completing an already-completed action returns 409")
+    void completeTwiceReturns409() throws Exception {
+        UUID actionId = submitAllowedAction();
+        mockMvc.perform(post("/api/agent-actions/" + actionId + "/complete")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":true}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/agent-actions/" + actionId + "/complete")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":true}"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("completing with a wrong agent key returns 401")
+    void completeWithWrongKeyReturns401() throws Exception {
+        UUID actionId = submitAllowedAction();
+        mockMvc.perform(post("/api/agent-actions/" + actionId + "/complete")
+                        .header("X-Agent-Key", "agk_not-the-right-key")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":true}"))
+                .andExpect(status().isUnauthorized());
+
+        assertThat(actionRequestRepository.findById(actionId).orElseThrow().getStatus())
+                .isEqualTo(ActionRequestStatus.ALLOWED);
+    }
+
+    @Test
+    @DisplayName("completing an unknown action returns 404")
+    void completeUnknownActionReturns404() throws Exception {
+        mockMvc.perform(post("/api/agent-actions/" + UUID.randomUUID() + "/complete")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"success\":true}"))
+                .andExpect(status().isNotFound());
+    }
+
+    /** Submit a LOW-risk action that the sample policy set ALLOWs, returning its id. */
+    private UUID submitAllowedAction() throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/agent-actions")
+                        .header("X-Agent-Key", rawKey)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(jsonBody(agentName, "CALL_EXTERNAL_API", "LOW",
+                                "{\"targetDomain\":\"acme.com\"}")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ALLOWED"))
+                .andReturn();
+        return UUID.fromString(objectMapper.readTree(result.getResponse().getContentAsString())
+                .get("actionId").asText());
+    }
+
     private String jsonBody(String agent, String actionType, String risk, String metadataJson) {
         StringBuilder sb = new StringBuilder("{")
                 .append("\"agentId\":\"").append(agent).append("\",")

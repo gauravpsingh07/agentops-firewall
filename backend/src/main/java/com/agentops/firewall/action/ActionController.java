@@ -1,7 +1,9 @@
 package com.agentops.firewall.action;
 
+import com.agentops.firewall.action.dto.ActionCompletionResponse;
 import com.agentops.firewall.action.dto.ActionDecisionResponse;
 import com.agentops.firewall.action.dto.ActionRequestResponse;
+import com.agentops.firewall.action.dto.CompleteActionRequest;
 import com.agentops.firewall.action.dto.SubmitActionRequest;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.ActionType;
@@ -56,6 +58,14 @@ public class ActionController {
             @RequestHeader(value = "X-Agent-Key", required = false) String agentKey) {
         ActionDecisionResponse response = ingestionService.submit(body, agentKey);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping("/{id}/complete")
+    public ActionCompletionResponse complete(
+            @PathVariable UUID id,
+            @Valid @RequestBody CompleteActionRequest body,
+            @RequestHeader(value = "X-Agent-Key", required = false) String agentKey) {
+        return ingestionService.complete(id, body, agentKey);
     }
 
     @GetMapping

@@ -49,6 +49,9 @@ public class TransactionalMessagingForwarder {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onActionCompleted(ActionCompletedNotification event) {
         eventPublisher.publishCompleted(event.action(), event.approval(), event.reviewerUserId());
-        approvalTaskPublisher.publishApprovalCompleted(event.approval(), event.action(), event.finalStatus());
+        // A self-reported completion has no approval workflow to notify.
+        if (event.approval() != null) {
+            approvalTaskPublisher.publishApprovalCompleted(event.approval(), event.action(), event.finalStatus());
+        }
     }
 }
