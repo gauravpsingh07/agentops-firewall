@@ -7,11 +7,26 @@
         entry and publishes a completion event.
       </p>
     </div>
-    @if (page(); as p) {
-      <span class="text-xs text-slate-500">
-        Showing {{ p.content.length }} of {{ p.totalElements }}
+    <div class="flex items-center gap-3">
+      <span
+        class="inline-flex items-center gap-1.5 text-xs"
+        [class.text-emerald-300]="live()"
+        [class.text-slate-500]="!live()"
+        title="Live updates over the SSE stream"
+      >
+        <span
+          class="h-2 w-2 rounded-full"
+          [class.bg-emerald-400]="live()"
+          [class.bg-slate-600]="!live()"
+        ></span>
+        {{ live() ? 'Live' : 'Offline' }}
       </span>
-    }
+      @if (page(); as p) {
+        <span class="text-xs text-slate-500">
+          Showing {{ p.content.length }} of {{ p.totalElements }}
+        </span>
+      }
+    </div>
   </header>
 
   <form

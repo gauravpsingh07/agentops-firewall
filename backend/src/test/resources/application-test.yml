@@ -43,6 +43,10 @@ spring:
 
 agentops:
   messaging:
+    # No broker runs in tests: keep the consumers off so no Kafka/Rabbit
+    # listener container is started.
+    consumers:
+      enabled: false
     kafka:
       topic:
         actions-received: test.agent.actions.received
@@ -58,6 +62,11 @@ agentops:
       secret: agentops_test_only_placeholder_jwt_secret_for_unit_tests_minimum_thirtytwo_bytes
       expiration-minutes: 60
       issuer: agentops-firewall-test
+    # Rate limiting is disabled by default in tests so repeated logins across
+    # the suite never trip the limiter. The dedicated RateLimitFilterIT
+    # re-enables it via @TestPropertySource.
+    rate-limit:
+      enabled: false
 
 logging:
   level:

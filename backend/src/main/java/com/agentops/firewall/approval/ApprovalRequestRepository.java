@@ -5,6 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +17,10 @@ public interface ApprovalRequestRepository extends JpaRepository<ApprovalRequest
     Optional<ApprovalRequest> findByActionRequestId(UUID actionRequestId);
 
     long countByStatus(ApprovalStatus status);
+
+    /**
+     * Approvals in the given status whose expiry has already elapsed. Used
+     * by the expiry sweeper to find PENDING requests past {@code expiresAt}.
+     */
+    List<ApprovalRequest> findByStatusAndExpiresAtBefore(ApprovalStatus status, Instant cutoff);
 }

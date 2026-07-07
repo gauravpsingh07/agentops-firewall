@@ -18,8 +18,18 @@ JWTs expire after `expiresInSeconds` (see `LoginResponse`); the frontend
 re-authenticates the user by calling `GET /api/auth/me` on startup and
 clearing the token on any 401 outside the `/login` request.
 
-The agent ingestion endpoint (`POST /api/agent-actions`) is the **only**
-endpoint that uses the `X-Agent-Key` header. All other endpoints require a JWT.
+> **JWT tradeoff.** Tokens are stateless and self-contained — there is no
+> server-side session store or revocation list, so a token is valid until it
+> expires and `logout` is a client-side token discard. The token is held in
+> `localStorage` on the frontend. This keeps the demo simple; a production
+> deployment would add short-lived access tokens + refresh rotation and/or a
+> revocation store, and move the token to an `HttpOnly` cookie.
+
+The agent endpoints (`POST /api/agent-actions` and
+`POST /api/agent-actions/{id}/complete`) authenticate with the `X-Agent-Key`
+header rather than a JWT. The SSE stream (`GET /api/stream`) accepts its JWT
+as an `access_token` query parameter because `EventSource` cannot set
+headers. Every other endpoint requires an `Authorization: Bearer` JWT.
 
 ### Roles
 
@@ -61,6 +71,7 @@ Common status codes used:
 | 403 | Authenticated but not authorised for this operation |
 | 404 | Resource not found |
 | 409 | Conflict (e.g. an approval that has already been decided) |
+| 429 | Rate limit exceeded (see [Rate limiting](#rate-limiting)); includes a `Retry-After` header |
 | 500 | Unexpected server error |
 
 ---
@@ -182,10 +193,36 @@ Response `201 Created`:
 
 `approvalId` is non-null only when `decision == NEEDS_APPROVAL`.
 
+### `POST /api/agent-actions/{id}/complete`
+
+After the firewall clears an action (`ALLOWED`, or `APPROVED` by a reviewer),
+the agent executes it and reports the outcome here. Authenticated by
+`X-Agent-Key`; only the action's **own** agent can complete it. The action
+moves to the terminal `COMPLETED` or `FAILED` status and an `ACTION_COMPLETED`
+event is emitted to Kafka.
+
+```bash
+curl -sS -X POST "http://localhost:8080/api/agent-actions/$ACTION_ID/complete" \
+  -H "X-Agent-Key: $AGENT_KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"success": true, "detail": "sent 1 email"}'
+```
+
+Response `200 OK`:
+
+```json
+{ "actionId": "f30c...", "status": "COMPLETED" }
+```
+
+Returns `409 Conflict` if the action is not in a completable state (only
+`ALLOWED`/`APPROVED` may be completed), `404` for an unknown id, and `401`
+for a wrong/missing key.
+
 ### `GET /api/agent-actions`
 
 Paginated list. Filters: `agentId`, `actionType`, `status`, `riskLevel`,
-`page`, `size`. Default sort: `createdAt DESC`.
+`page`, `size`. Default sort: `createdAt DESC`. Filtering and pagination are
+performed in the database via a JPA `Specification`.
 
 ### `GET /api/agent-actions/{id}`
 
@@ -270,6 +307,11 @@ Response:
 Filters on `GET /api/approvals`: `status` (`PENDING`/`APPROVED`/`REJECTED`/`EXPIRED`),
 `agentId`, `actionType`, `riskLevel`, `from`, `to`, `page`, `size`.
 
+A background sweeper expires `PENDING` approvals whose `expiresAt` has
+elapsed: the approval moves to `EXPIRED`, the underlying action is failed
+closed to `DENIED`, and an `APPROVAL_EXPIRED` audit event is written. The
+sweep interval is configurable via `agentops.approvals.expiry.*`.
+
 ### `POST /api/approvals/{id}/approve`
 
 Body is optional; only the reviewer note is accepted.
@@ -310,6 +352,39 @@ All five endpoints accept any authenticated role.
 | `GET /api/dashboard/risk-distribution` | one row per `RiskLevel` with a count |
 | `GET /api/dashboard/decision-distribution` | one row per `ActionRequestStatus` with a count |
 | `GET /api/dashboard/recent-audit-events` | most recent audit-log entries |
+
+---
+
+## Live activity stream
+
+### `GET /api/stream`
+
+A Server-Sent Events feed of live firewall activity, sourced from the Kafka
+and RabbitMQ consumers' in-memory projection. On connect the client receives
+one `snapshot` event (current per-type counters + a recent-events buffer),
+then an `activity` event for each subsequent consumed broker event.
+
+Because `EventSource` cannot set headers, the JWT is passed as a query
+parameter:
+
+```javascript
+const es = new EventSource(`http://localhost:8080/api/stream?access_token=${jwt}`);
+es.addEventListener('snapshot', (e) => render(JSON.parse(e.data)));
+es.addEventListener('activity', (e) => append(JSON.parse(e.data)));
+```
+
+Live data requires the Kafka/RabbitMQ brokers to be running (the consumers
+feed the projection). Available to any authenticated role.
+
+---
+
+## Rate limiting
+
+`POST /api/auth/login` (per client IP) and the agent ingestion endpoints
+(per agent key) are throttled by a fixed-window limiter that runs ahead of
+authentication. Over-limit requests receive `429 Too Many Requests` with a
+`Retry-After` header and the standard `ApiError` body. Limits and the master
+switch are configurable under `agentops.security.rate-limit.*`.
 
 ---
 

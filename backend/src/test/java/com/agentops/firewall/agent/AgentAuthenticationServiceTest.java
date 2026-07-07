@@ -64,7 +64,7 @@ class AgentAuthenticationServiceTest {
     @Test
     @DisplayName("missing agent identifier throws AgentAuthenticationException")
     void missingAgentId() {
-        assertThatThrownBy(() -> service.authenticate(null, "raw"))
+        assertThatThrownBy(() -> service.authenticate((String) null, "raw"))
                 .isInstanceOf(AgentAuthenticationException.class);
         assertThatThrownBy(() -> service.authenticate("", "raw"))
                 .isInstanceOf(AgentAuthenticationException.class);

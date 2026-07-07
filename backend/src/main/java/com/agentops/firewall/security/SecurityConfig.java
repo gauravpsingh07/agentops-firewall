@@ -1,5 +1,6 @@
 package com.agentops.firewall.security;
 
+import com.agentops.firewall.security.ratelimit.RateLimitProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -33,7 +34,7 @@ import java.util.List;
  */
 @Configuration
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, RateLimitProperties.class})
 public class SecurityConfig {
 
     @Bean
@@ -109,6 +110,9 @@ public class SecurityConfig {
                 // service layer can produce a uniform 401 when the agent
                 // credential is missing or wrong.
                 .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/agent-actions").permitAll()
+                // Agent-reported completion is likewise authenticated by
+                // X-Agent-Key in the service layer, not by a user JWT.
+                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/agent-actions/*/complete").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/**").authenticated()

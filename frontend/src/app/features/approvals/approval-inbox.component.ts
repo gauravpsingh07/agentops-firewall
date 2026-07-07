@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormBuilder, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 
+import { EventStreamService } from '../../core/services/event-stream.service';
 import { Approval, ApprovalFilters } from '../../core/models/approval.model';
 import {
   ACTION_REQUEST_STATUSES,
@@ -27,11 +29,16 @@ const APPROVAL_STATUSES: ApprovalStatus[] = ['PENDING', 'APPROVED', 'REJECTED', 
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './approval-inbox.component.html'
 })
-export class ApprovalInboxComponent implements OnInit {
+export class ApprovalInboxComponent implements OnInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly approvals = inject(ApprovalService);
   private readonly auth = inject(AuthService);
   private readonly notify = inject(NotificationService);
+  private readonly stream = inject(EventStreamService);
+
+  /** Live-connection indicator for the header badge. */
+  readonly live = this.stream.connected;
+  private streamSub?: Subscription;
 
   readonly statuses = APPROVAL_STATUSES;
   readonly actionTypes = ACTION_TYPES;
@@ -60,6 +67,17 @@ export class ApprovalInboxComponent implements OnInit {
 
   ngOnInit(): void {
     this.load();
+    // Live-refresh the inbox when an approval task flows through the queue.
+    this.stream.connect();
+    this.streamSub = this.stream.events$.subscribe((event) => {
+      if (event.type.startsWith('APPROVAL')) {
+        this.load();
+      }
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.streamSub?.unsubscribe();
   }
 
   applyFilters(): void {

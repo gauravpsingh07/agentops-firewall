@@ -140,6 +140,39 @@ class PolicyControllerIT {
     }
 
     @Test
+    @DisplayName("PATCH records a field-level before/after diff in the POLICY_UPDATED audit entry")
+    void patchRecordsDiff() throws Exception {
+        String token = login("admin", "admin123");
+
+        MvcResult created = mockMvc.perform(post("/api/policies")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Diff target\",\"effect\":\"DENY\",\"priority\":50}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        UUID id = UUID.fromString(objectMapper.readTree(created.getResponse().getContentAsString())
+                .get("id").asText());
+
+        mockMvc.perform(patch("/api/policies/" + id)
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"priority\":90,\"effect\":\"NEEDS_APPROVAL\"}"))
+                .andExpect(status().isOk());
+
+        var updated = auditLogRepository.findAll().stream()
+                .filter(l -> "POLICY_UPDATED".equals(l.getEventType()))
+                .findFirst()
+                .orElseThrow();
+        JsonNode changes = objectMapper.readTree(updated.getDetailsJson()).get("changes");
+        assertThat(changes.get("priority").get("from").asInt()).isEqualTo(50);
+        assertThat(changes.get("priority").get("to").asInt()).isEqualTo(90);
+        assertThat(changes.get("effect").get("from").asText()).isEqualTo("DENY");
+        assertThat(changes.get("effect").get("to").asText()).isEqualTo("NEEDS_APPROVAL");
+        // A field that did not change must not appear in the diff.
+        assertThat(changes.has("name")).isFalse();
+    }
+
+    @Test
     @DisplayName("DELETE soft-disables the policy and writes an audit log")
     void deleteSoftDisables() throws Exception {
         String token = login("admin", "admin123");

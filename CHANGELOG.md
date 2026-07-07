@@ -6,6 +6,63 @@ project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+Hardening pass plus four capability additions surfaced by a deep code
+review: the messaging architecture gains a consumer side and a live feed,
+approvals finally expire, agents can report execution outcomes, and the
+login/ingestion paths are rate-limited.
+
+### Added
+
+- **Action completion callback.** `POST /api/agent-actions/{id}/complete`
+  lets an agent report the outcome of an `ALLOWED`/`APPROVED` action; the
+  action moves to the new `COMPLETED`/`FAILED` terminal state, is audited,
+  and emits an `ACTION_COMPLETED` Kafka event. Authenticated by
+  `X-Agent-Key`, scoped to the action's own agent.
+- **Approval expiry sweeper.** A `@Scheduled` job expires `PENDING`
+  approvals past their deadline — approval → `EXPIRED`, action failed closed
+  to `DENIED`, and an `APPROVAL_EXPIRED` audit event written. Wires up the
+  previously-dead `EXPIRED` status / audit event / dashboard filter.
+  Configurable via `agentops.approvals.expiry.*`.
+- **Broker consumers.** Kafka (`@KafkaListener`) and RabbitMQ
+  (`@RabbitListener`) consumers project the action stream and approval queue
+  into an in-memory `LiveMetricsService`, giving the topics/queues a reader.
+  Guarded by `agentops.messaging.consumers.enabled`.
+- **Live activity stream.** `GET /api/stream` (SSE) broadcasts consumed
+  events; the Angular approval inbox live-reloads and shows a Live/Offline
+  badge. JWT passed as an `access_token` query param since `EventSource`
+  cannot set headers.
+- **Rate limiting.** A dependency-free fixed-window limiter throttles
+  `POST /api/auth/login` (per IP) and agent ingestion (per key) ahead of the
+  security chain, returning `429` with `Retry-After`. Configurable via
+  `agentops.security.rate-limit.*`.
+- **Policy-update audit diff.** `POLICY_UPDATED` entries now include a
+  field-level before/after diff of what changed.
+
+### Changed
+
+- **Broker publishing moved to after-commit.** Kafka/RabbitMQ events are now
+  emitted via `@TransactionalEventListener(AFTER_COMMIT)` instead of inside
+  the transaction, removing the dual-write hazard where a rollback could
+  still emit a phantom event.
+- **Action list query pushed to the database.** `GET /api/agent-actions` now
+  filters, sorts, and paginates via a JPA `Specification` instead of loading
+  the whole table into memory.
+
+### Performance
+
+- Policy evaluation caches compiled regex patterns and batch-loads
+  conditions (`findByPolicyIdIn`) instead of an N+1 query per policy.
+- `Agent.lastUsedAt` is stamped with a targeted `@Modifying` update, keeping
+  the hottest write off the optimistic-locking path.
+
+### Security
+
+- Documented the stateless-JWT / `localStorage` tradeoff in `docs/api.md`.
+
+---
+
 ## [1.0.1] — 2026-05-22
 
 Patch release focused on local-development experience: hardens the

@@ -11,7 +11,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -91,6 +94,8 @@ public class PolicyService {
     @Transactional
     public PolicyResponse update(UUID id, UpdatePolicyRequest request, UUID byUserId) {
         Policy policy = loadById(id);
+        Map<String, Object> before = snapshot(policy);
+
         if (request.name() != null) policy.setName(request.name());
         if (request.description() != null) policy.setDescription(request.description());
         if (request.effect() != null) policy.setEffect(request.effect());
@@ -100,13 +105,17 @@ public class PolicyService {
         if (request.resourcePattern() != null) policy.setResourcePattern(request.resourcePattern());
         if (request.minRiskLevel() != null) policy.setMinRiskLevel(request.minRiskLevel());
 
+        boolean conditionsReplaced = false;
         if (request.conditions() != null) {
             List<PolicyCondition> existing = conditionRepository.findByPolicyId(id);
             conditionRepository.deleteAll(existing);
             for (PolicyConditionDto c : request.conditions()) {
                 persistCondition(id, c);
             }
+            conditionsReplaced = true;
         }
+
+        Map<String, Object> changes = diff(before, snapshot(policy));
 
         auditService.record(
                 AuditService.EVENT_POLICY_UPDATED,
@@ -116,10 +125,45 @@ public class PolicyService {
                 AuditService.details(
                         "name", policy.getName(),
                         "effect", policy.getEffect().name(),
-                        "enabled", policy.isEnabled()
+                        "enabled", policy.isEnabled(),
+                        // Field-level before/after so the audit trail shows
+                        // exactly what a reviewer changed, not just that an
+                        // update happened.
+                        "changes", changes,
+                        "conditionsReplaced", conditionsReplaced
                 )
         );
         return PolicyResponse.fromEntity(policy, conditionRepository.findByPolicyId(id));
+    }
+
+    /** Snapshot of the mutable, audit-worthy fields of a policy. */
+    private Map<String, Object> snapshot(Policy policy) {
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put("name", policy.getName());
+        fields.put("description", policy.getDescription());
+        fields.put("effect", policy.getEffect() == null ? null : policy.getEffect().name());
+        fields.put("priority", policy.getPriority());
+        fields.put("enabled", policy.isEnabled());
+        fields.put("actionType", policy.getActionType() == null ? null : policy.getActionType().name());
+        fields.put("resourcePattern", policy.getResourcePattern());
+        fields.put("minRiskLevel", policy.getMinRiskLevel() == null ? null : policy.getMinRiskLevel().name());
+        return fields;
+    }
+
+    /** Field-level diff: {@code field -> {from, to}} for every value that changed. */
+    private Map<String, Object> diff(Map<String, Object> before, Map<String, Object> after) {
+        Map<String, Object> changes = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : before.entrySet()) {
+            Object oldValue = entry.getValue();
+            Object newValue = after.get(entry.getKey());
+            if (!Objects.equals(oldValue, newValue)) {
+                Map<String, Object> fromTo = new LinkedHashMap<>();
+                fromTo.put("from", oldValue);
+                fromTo.put("to", newValue);
+                changes.put(entry.getKey(), fromTo);
+            }
+        }
+        return changes;
     }
 
     /**

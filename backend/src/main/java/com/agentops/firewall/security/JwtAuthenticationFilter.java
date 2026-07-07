@@ -30,6 +30,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
     private static final String AUTH_HEADER = "Authorization";
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String STREAM_PATH = "/api/stream";
+    private static final String ACCESS_TOKEN_PARAM = "access_token";
 
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
@@ -67,6 +69,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String header = request.getHeader(AUTH_HEADER);
         if (header != null && header.startsWith(BEARER_PREFIX)) {
             return header.substring(BEARER_PREFIX.length()).trim();
+        }
+        // EventSource cannot set headers, so the SSE stream endpoint may pass
+        // the JWT as an access_token query parameter instead. Scoped to that
+        // path so tokens are not read from the query string anywhere else.
+        if (request.getRequestURI().startsWith(STREAM_PATH)) {
+            String param = request.getParameter(ACCESS_TOKEN_PARAM);
+            if (StringUtils.hasText(param)) {
+                return param.trim();
+            }
         }
         return null;
     }

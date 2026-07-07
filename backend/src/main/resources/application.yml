@@ -48,6 +48,11 @@ spring:
         max.block.ms: 5000
         delivery.timeout.ms: 8000
         request.timeout.ms: 5000
+    consumer:
+      group-id: ${AGENTOPS_KAFKA_CONSUMER_GROUP:agentops-firewall-metrics}
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
   rabbitmq:
     host: ${SPRING_RABBITMQ_HOST:localhost}
@@ -77,6 +82,12 @@ management:
 
 agentops:
   messaging:
+    # Broker consumers (Kafka action stream + RabbitMQ approval queue) that
+    # project events into the in-memory live-metrics feed. Disable to run the
+    # backend as a pure producer.
+    consumers:
+      enabled: ${AGENTOPS_MESSAGING_CONSUMERS_ENABLED:true}
+      group-id: ${AGENTOPS_KAFKA_CONSUMER_GROUP:agentops-firewall-metrics}
     kafka:
       topic:
         actions-received:  ${AGENTOPS_KAFKA_TOPIC_ACTIONS_RECEIVED:agent.actions.received}
@@ -86,6 +97,12 @@ agentops:
       queue:
         approval-requests:      ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_REQUESTS:approval.requests}
         approval-notifications: ${AGENTOPS_RABBITMQ_QUEUE_APPROVAL_NOTIFICATIONS:approval.notifications}
+  approvals:
+    expiry:
+      # Background sweep that expires PENDING approvals past their deadline.
+      # Interval and initial delay are in milliseconds.
+      check-interval-ms: ${AGENTOPS_APPROVAL_EXPIRY_INTERVAL_MS:60000}
+      initial-delay-ms: ${AGENTOPS_APPROVAL_EXPIRY_INITIAL_DELAY_MS:60000}
   security:
     jwt:
       # Placeholder default — replace via JWT_SECRET env variable. The default
@@ -94,6 +111,17 @@ agentops:
       secret: ${JWT_SECRET:agentops_local_dev_only_placeholder_jwt_secret_change_me_please_thirtytwo_plus}
       expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
       issuer: ${JWT_ISSUER:agentops-firewall}
+    rate-limit:
+      # Fixed-window throttling shed ahead of the security chain. Capacities
+      # are per window in seconds, keyed by client IP (login) / agent key
+      # (ingestion).
+      enabled: ${AGENTOPS_RATE_LIMIT_ENABLED:true}
+      login:
+        capacity: ${AGENTOPS_RATE_LIMIT_LOGIN_CAPACITY:10}
+        window-seconds: ${AGENTOPS_RATE_LIMIT_LOGIN_WINDOW:60}
+      ingestion:
+        capacity: ${AGENTOPS_RATE_LIMIT_INGESTION_CAPACITY:60}
+        window-seconds: ${AGENTOPS_RATE_LIMIT_INGESTION_WINDOW:60}
 
 logging:
   level:

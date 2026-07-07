@@ -1,7 +1,9 @@
 package com.agentops.firewall.action;
 
+import com.agentops.firewall.action.dto.ActionCompletionResponse;
 import com.agentops.firewall.action.dto.ActionDecisionResponse;
 import com.agentops.firewall.action.dto.ActionRequestResponse;
+import com.agentops.firewall.action.dto.CompleteActionRequest;
 import com.agentops.firewall.action.dto.SubmitActionRequest;
 import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.common.domain.enums.ActionType;
@@ -9,9 +11,9 @@ import com.agentops.firewall.common.domain.enums.RiskLevel;
 import com.agentops.firewall.common.error.NotFoundException;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +27,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 /**
@@ -59,6 +60,14 @@ public class ActionController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @PostMapping("/{id}/complete")
+    public ActionCompletionResponse complete(
+            @PathVariable UUID id,
+            @Valid @RequestBody CompleteActionRequest body,
+            @RequestHeader(value = "X-Agent-Key", required = false) String agentKey) {
+        return ingestionService.complete(id, body, agentKey);
+    }
+
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','REVIEWER','VIEWER')")
     public Page<ActionRequestResponse> list(
@@ -67,19 +76,13 @@ public class ActionController {
             @RequestParam(required = false) ActionRequestStatus status,
             @RequestParam(required = false) RiskLevel riskLevel,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        // In-memory filter for now; can be promoted to a Specification or
-        // a derived query in a later phase once we have richer indexes.
-        List<ActionRequestResponse> all = actionRequestRepository.findAll().stream()
-                .filter(a -> agentId == null || agentId.equals(a.getAgentId()))
-                .filter(a -> actionType == null || actionType == a.getActionType())
-                .filter(a -> status == null || status == a.getStatus())
-                .filter(a -> riskLevel == null || riskLevel == a.getRiskLevel())
-                .sorted((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()))
-                .map(ActionRequestResponse::fromEntity)
-                .toList();
-        int from = Math.min((int) pageable.getOffset(), all.size());
-        int to = Math.min(from + pageable.getPageSize(), all.size());
-        return new PageImpl<>(all.subList(from, to), pageable, all.size());
+        // Filtering, sorting, and pagination are all pushed to the database
+        // via a JPA Specification so the endpoint never materializes the
+        // whole table into memory.
+        Specification<ActionRequest> spec =
+                ActionRequestSpecifications.withFilters(agentId, actionType, status, riskLevel);
+        return actionRequestRepository.findAll(spec, pageable)
+                .map(ActionRequestResponse::fromEntity);
     }
 
     @GetMapping("/{id}")

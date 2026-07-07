@@ -3,6 +3,7 @@ package com.agentops.firewall.messaging;
 import com.agentops.firewall.action.ActionRequest;
 import com.agentops.firewall.agent.Agent;
 import com.agentops.firewall.approval.ApprovalRequest;
+import com.agentops.firewall.common.domain.enums.ActionRequestStatus;
 import com.agentops.firewall.messaging.events.ActionCompletedEvent;
 import com.agentops.firewall.messaging.events.ActionDecidedEvent;
 import com.agentops.firewall.messaging.events.ActionReceivedEvent;
@@ -58,7 +59,11 @@ public class KafkaAgentActionEventPublisher implements AgentActionEventPublisher
                 action.getActionType(),
                 action.getResource(),
                 action.getRiskLevel(),
-                action.getStatus(),
+                // The received event is, by definition, emitted for an action
+                // in RECEIVED state. Use the constant rather than reading the
+                // entity's status, which is mutated later in the ingestion
+                // transaction and would otherwise leak into the deferred send.
+                ActionRequestStatus.RECEIVED,
                 Instant.now()
         );
         publish(topics.getActionsReceived(), action.getId().toString(), event);
@@ -89,7 +94,9 @@ public class KafkaAgentActionEventPublisher implements AgentActionEventPublisher
                 UUID.randomUUID().toString(),
                 ActionCompletedEvent.TYPE,
                 action.getId(),
-                approval.getId(),
+                // Agent-reported completions (ALLOWED actions the agent ran
+                // directly) have no approval, so approvalRequestId is null.
+                approval == null ? null : approval.getId(),
                 action.getAgentId(),
                 action.getActionType(),
                 action.getRiskLevel(),
